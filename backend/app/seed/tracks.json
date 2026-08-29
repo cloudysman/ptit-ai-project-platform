@@ -1,0 +1,13 @@
+[
+  {"slug": "python", "name": "Python", "order_index": 1, "description": "Nền tảng lập trình, cấu trúc dữ liệu và làm việc với file."},
+  {"slug": "data-science", "name": "Data Science", "order_index": 2, "description": "Đọc, làm sạch, phân tích và trực quan hoá dữ liệu."},
+  {"slug": "machine-learning", "name": "Machine Learning", "order_index": 3, "description": "Mô hình học có giám sát, đặc trưng và cách đánh giá."},
+  {"slug": "deep-learning", "name": "Deep Learning", "order_index": 4, "description": "Mạng nơ ron, huấn luyện và tinh chỉnh mô hình."},
+  {"slug": "computer-vision", "name": "Computer Vision", "order_index": 5, "description": "Xử lý ảnh và video, nhận dạng và phát hiện đối tượng."},
+  {"slug": "nlp", "name": "NLP", "order_index": 6, "description": "Xử lý ngôn ngữ tự nhiên, từ làm sạch văn bản tới phân loại."},
+  {"slug": "generative-ai", "name": "Generative AI", "order_index": 7, "description": "Ứng dụng mô hình ngôn ngữ lớn vào bài toán thật."},
+  {"slug": "ai-agents", "name": "AI Agents", "order_index": 8, "description": "Tác tử biết dùng công cụ, lập kế hoạch và tự kiểm tra."},
+  {"slug": "recommendation", "name": "Recommendation", "order_index": 9, "description": "Hệ gợi ý, từ lọc cộng tác tới xử lý người dùng mới."},
+  {"slug": "web-api", "name": "Web và API", "order_index": 10, "description": "Dịch vụ web, thiết kế API và lưu trữ dữ liệu."},
+  {"slug": "deployment", "name": "Deployment", "order_index": 11, "description": "Đóng gói, triển khai và theo dõi hệ thống khi chạy thật."}
+]

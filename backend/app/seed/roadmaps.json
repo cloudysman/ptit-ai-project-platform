@@ -1,0 +1,203 @@
+[
+  {
+    "slug": "ai-engineer",
+    "name": "AI Engineer",
+    "description": "Lộ trình cho người muốn đưa mô hình vào sản phẩm thật, từ nền tảng Python tới triển khai và giám sát.",
+    "steps": [
+      {
+        "project": "cli-quiz-python",
+        "note": "Làm quen với việc tổ chức code thành hàm."
+      },
+      {
+        "project": "csv-grade-report",
+        "note": "Bắt đầu làm việc với dữ liệu thật."
+      },
+      {
+        "project": "weather-data-explorer",
+        "note": "Học pandas trước khi học mô hình."
+      },
+      {
+        "project": "first-chart-gallery",
+        "note": "Biết trình bày kết quả cho người khác đọc."
+      },
+      {
+        "project": "student-score-eda",
+        "note": "Tập đi từ câu hỏi tới bằng chứng."
+      },
+      {
+        "project": "sql-analytics-workbook",
+        "note": "Trả lời câu hỏi trực tiếp trên cơ sở dữ liệu."
+      },
+      {
+        "project": "house-price-regression",
+        "note": "Quy trình học có giám sát đầy đủ đầu tiên."
+      },
+      {
+        "project": "digit-recognizer-mlp",
+        "note": "Bước đầu vào mạng nơ ron."
+      },
+      {
+        "project": "image-classifier-cnn",
+        "note": "Dùng mô hình sẵn có và tinh chỉnh."
+      },
+      {
+        "project": "customer-churn-prediction",
+        "note": "Gắn kết quả mô hình với giá trị kinh doanh."
+      },
+      {
+        "project": "model-evaluation-lab",
+        "note": "Tránh các cách đánh giá sai thường gặp."
+      },
+      {
+        "project": "movie-search-api",
+        "note": "Biết dựng API trước khi dựng ứng dụng."
+      },
+      {
+        "project": "ml-service-fastapi",
+        "note": "Biến mô hình thành dịch vụ gọi được."
+      },
+      {
+        "project": "data-pipeline-scheduler",
+        "note": "Tự động hoá toàn bộ quy trình dữ liệu."
+      },
+      {
+        "project": "deploy-ml-on-docker",
+        "note": "Cố định môi trường và triển khai tự động."
+      },
+      {
+        "project": "mlops-monitoring-dashboard",
+        "note": "Giữ cho mô hình còn tốt sau khi triển khai."
+      }
+    ]
+  },
+  {
+    "slug": "data-scientist",
+    "name": "Data Scientist",
+    "description": "Lộ trình thiên về phân tích, đánh giá và xây dựng quy trình dữ liệu đáng tin cậy.",
+    "steps": [
+      {
+        "project": "cli-quiz-python",
+        "note": "Nền tảng lập trình."
+      },
+      {
+        "project": "csv-grade-report",
+        "note": "Đọc ghi file và xử lý dữ liệu thiếu."
+      },
+      {
+        "project": "weather-data-explorer",
+        "note": "Thành thạo các thao tác pandas."
+      },
+      {
+        "project": "first-chart-gallery",
+        "note": "Chọn đúng loại biểu đồ."
+      },
+      {
+        "project": "student-score-eda",
+        "note": "Phân tích khám phá có kỷ luật."
+      },
+      {
+        "project": "sql-analytics-workbook",
+        "note": "Trả lời câu hỏi trực tiếp trên cơ sở dữ liệu."
+      },
+      {
+        "project": "house-price-regression",
+        "note": "Mô hình dự báo đầu tiên."
+      },
+      {
+        "project": "customer-churn-prediction",
+        "note": "Chọn ngưỡng theo chi phí thực tế."
+      },
+      {
+        "project": "model-evaluation-lab",
+        "note": "Tránh các cách đánh giá sai thường gặp."
+      },
+      {
+        "project": "movie-recommender-cf",
+        "note": "Làm quen bài toán xếp hạng."
+      },
+      {
+        "project": "data-pipeline-scheduler",
+        "note": "Tự động hoá toàn bộ quy trình dữ liệu."
+      }
+    ]
+  },
+  {
+    "slug": "genai-engineer",
+    "name": "GenAI Engineer",
+    "description": "Lộ trình cho người muốn xây ứng dụng dựa trên mô hình ngôn ngữ lớn và tác tử.",
+    "steps": [
+      {
+        "project": "cli-quiz-python",
+        "note": "Làm quen với việc tổ chức code thành hàm."
+      },
+      {
+        "project": "csv-grade-report",
+        "note": "Bắt đầu làm việc với dữ liệu thật."
+      },
+      {
+        "project": "text-cleaning-toolkit",
+        "note": "Chuẩn hoá văn bản, nền của mọi bài toán ngôn ngữ."
+      },
+      {
+        "project": "chatbot-rule-based",
+        "note": "Thấy rõ giới hạn của phương pháp theo luật."
+      },
+      {
+        "project": "movie-search-api",
+        "note": "Biết dựng API trước khi dựng ứng dụng."
+      },
+      {
+        "project": "weather-data-explorer",
+        "note": "Học pandas trước khi học mô hình."
+      },
+      {
+        "project": "first-chart-gallery",
+        "note": "Biết trình bày kết quả cho người khác đọc."
+      },
+      {
+        "project": "student-score-eda",
+        "note": "Tập đi từ câu hỏi tới bằng chứng."
+      },
+      {
+        "project": "spam-message-classifier",
+        "note": "Biểu diễn văn bản thành đặc trưng số."
+      },
+      {
+        "project": "news-topic-classifier",
+        "note": "So sánh biểu diễn tần suất với biểu diễn vector."
+      },
+      {
+        "project": "llm-summarizer-app",
+        "note": "Thiết kế prompt có ràng buộc."
+      },
+      {
+        "project": "sql-analytics-workbook",
+        "note": "Trả lời câu hỏi trực tiếp trên cơ sở dữ liệu."
+      },
+      {
+        "project": "house-price-regression",
+        "note": "Quy trình học có giám sát đầy đủ đầu tiên."
+      },
+      {
+        "project": "customer-churn-prediction",
+        "note": "Gắn kết quả mô hình với giá trị kinh doanh."
+      },
+      {
+        "project": "ml-service-fastapi",
+        "note": "Biến mô hình thành dịch vụ gọi được."
+      },
+      {
+        "project": "rag-document-assistant",
+        "note": "Truy hồi và sinh câu trả lời có trích dẫn."
+      },
+      {
+        "project": "university-ai-assistant",
+        "note": "Tác tử biết gọi công cụ và phân quyền."
+      },
+      {
+        "project": "multi-agent-research-assistant",
+        "note": "Nghiên cứu về phối hợp nhiều tác tử."
+      }
+    ]
+  }
+]

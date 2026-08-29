@@ -1,0 +1,9 @@
+# Thư viện cần để chạy backend. Phiên bản được ghim đúng bản đã kiểm thử.
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+SQLAlchemy==2.0.52
+pydantic==2.13.5
+pydantic-settings==2.15.0
+email-validator==2.3.0
+PyJWT==2.13.0
+bcrypt==5.0.0
