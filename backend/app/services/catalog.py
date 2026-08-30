@@ -4,25 +4,46 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import ColumnElement, Select, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models.catalog import Level, Project, Roadmap, Skill, Track, project_skill
-from app.models.enums import ProjectType
+from app.core.chuoi import bo_dau
+from app.core.config import settings
+from app.models.catalog import Level, Mentor, Project, Roadmap, Skill, Track, project_skill
+from app.models.enums import ProjectSort
+from app.schemas.catalog import CatalogStats, LevelCount, LevelRead, TrackCount, TrackRead
 from app.schemas.common import PageParams
 
-# Các cách sắp xếp được phép, ánh xạ sang cột thật để không phải ghép chuỗi SQL.
+
+def _khoa_chu(cot: ColumnElement[str]) -> ColumnElement[str]:
+    """Khoá so sánh của một cột chữ: chữ thường, không dấu.
+
+    SQLite được nền tảng đăng ký thêm hàm bo_dau ngay lúc mở kết nối, xem
+    app/db/session.py. Các cơ sở dữ liệu khác không có hàm đó nên chỉ hạ chữ
+    hoa; khi nào thật sự chạy trên một cơ sở dữ liệu khác thì mới cần bản thay
+    thế tương ứng của chúng.
+    """
+    return func.bo_dau(cot) if settings.is_sqlite else func.lower(cot)
+
+
+# Ánh xạ từng cách sắp xếp sang cột thật, để không phải ghép chuỗi SQL từ tham
+# số người dùng gửi lên.
 SORT_OPTIONS = {
-    "level": (Project.level_id.asc(), Project.estimated_hours.asc()),
-    "-level": (Project.level_id.desc(), Project.estimated_hours.desc()),
-    "hours": (Project.estimated_hours.asc(),),
-    "-hours": (Project.estimated_hours.desc(),),
-    "xp": (Project.xp_reward.asc(),),
-    "-xp": (Project.xp_reward.desc(),),
-    "newest": (Project.created_at.desc(),),
-    "title": (Project.title.asc(),),
+    ProjectSort.LEVEL: (Project.level_id.asc(), Project.estimated_hours.asc()),
+    ProjectSort.LEVEL_DESC: (Project.level_id.desc(), Project.estimated_hours.desc()),
+    ProjectSort.HOURS: (Project.estimated_hours.asc(),),
+    ProjectSort.HOURS_DESC: (Project.estimated_hours.desc(),),
+    ProjectSort.POINTS: (Project.reward_points.asc(),),
+    ProjectSort.POINTS_DESC: (Project.reward_points.desc(),),
+    ProjectSort.NEWEST: (Project.created_at.desc(),),
+    # Sắp theo khoá không dấu, nếu không thì "Ứng dụng" rơi xuống sau chữ Z.
+    ProjectSort.TITLE: (_khoa_chu(Project.title).asc(),),
 }
-DEFAULT_SORT = "level"
+DEFAULT_SORT = ProjectSort.LEVEL
+
+# Ba ký tự mang nghĩa riêng trong mẫu LIKE. Nếu không thoát, người gõ dấu phần
+# trăm vào ô tìm kiếm sẽ nhận về toàn bộ kho project.
+_KY_TU_LIKE = ("\\", "%", "_")
 
 
 @dataclass(slots=True)
@@ -32,12 +53,11 @@ class ProjectFilter:
     levels: list[int] = field(default_factory=list)
     tracks: list[str] = field(default_factory=list)
     skills: list[str] = field(default_factory=list)
-    project_types: list[ProjectType] = field(default_factory=list)
     max_hours: int | None = None
     min_hours: int | None = None
     query: str | None = None
     include_unpublished: bool = False
-    sort: str = DEFAULT_SORT
+    sort: ProjectSort = DEFAULT_SORT
 
 
 def _apply_filter(statement: Select, filters: ProjectFilter) -> Select:
@@ -64,9 +84,6 @@ def _apply_filter(statement: Select, filters: ProjectFilter) -> Select:
             )
         )
 
-    if filters.project_types:
-        statement = statement.where(Project.project_type.in_(filters.project_types))
-
     if filters.min_hours is not None:
         statement = statement.where(Project.estimated_hours >= filters.min_hours)
 
@@ -74,11 +91,16 @@ def _apply_filter(statement: Select, filters: ProjectFilter) -> Select:
         statement = statement.where(Project.estimated_hours <= filters.max_hours)
 
     if filters.query:
-        pattern = f"%{filters.query.strip().lower()}%"
+        # Cả từ khoá lẫn hai cột được so khớp đều đưa về chữ thường không dấu,
+        # nên gõ "nhan dang" cũng ra project tên "Nhận dạng".
+        tu_khoa = bo_dau(filters.query.strip())
+        for ky_tu in _KY_TU_LIKE:
+            tu_khoa = tu_khoa.replace(ky_tu, f"\\{ky_tu}")
+        pattern = f"%{tu_khoa}%"
         statement = statement.where(
             or_(
-                func.lower(Project.title).like(pattern),
-                func.lower(Project.summary).like(pattern),
+                _khoa_chu(Project.title).like(pattern, escape="\\"),
+                _khoa_chu(Project.summary).like(pattern, escape="\\"),
             )
         )
 
@@ -93,7 +115,7 @@ def list_projects(
     if total == 0:
         return [], 0
 
-    order_by = SORT_OPTIONS.get(filters.sort, SORT_OPTIONS[DEFAULT_SORT])
+    order_by = SORT_OPTIONS[filters.sort]
     statement = (
         _apply_filter(select(Project), filters)
         # Sắp thêm theo id để thứ tự luôn cố định giữa các trang, kể cả khi nhiều
@@ -105,9 +127,14 @@ def list_projects(
     return list(db.scalars(statement).all()), total
 
 
-def get_project_by_slug(db: Session, slug: str) -> Project | None:
-    """Đọc một project theo slug, kèm danh sách project tiên quyết."""
-    return db.scalar(select(Project).where(Project.slug == slug))
+def get_published_project(db: Session, slug: str) -> Project | None:
+    """Đọc một project đã xuất bản theo slug.
+
+    Điều kiện đã xuất bản được ghép thẳng vào truy vấn thay vì kiểm tra lại ở
+    từng endpoint, nhờ vậy mọi nơi dùng chung một cách hiểu về việc project nào
+    được phép hiển thị.
+    """
+    return db.scalar(select(Project).where(Project.slug == slug, Project.is_published.is_(True)))
 
 
 def get_random_project(db: Session, filters: ProjectFilter) -> Project | None:
@@ -122,6 +149,10 @@ def list_levels(db: Session) -> list[Level]:
 
 def list_tracks(db: Session) -> list[Track]:
     return list(db.scalars(select(Track).order_by(Track.order_index, Track.name)).all())
+
+
+def list_mentors(db: Session) -> list[Mentor]:
+    return list(db.scalars(select(Mentor).order_by(Mentor.order_index, Mentor.name)).all())
 
 
 def list_skills(db: Session) -> list[Skill]:
@@ -144,3 +175,37 @@ def count_projects_by_track(db: Session) -> dict[int, int]:
         .group_by(Project.track_id)
     ).all()
     return dict(rows)
+
+
+def count_projects_by_level(db: Session) -> dict[int, int]:
+    """Đếm số project đã xuất bản của từng level."""
+    rows = db.execute(
+        select(Project.level_id, func.count(Project.id))
+        .where(Project.is_published.is_(True))
+        .group_by(Project.level_id)
+    ).all()
+    return dict(rows)
+
+
+def summarize_catalog(db: Session) -> CatalogStats:
+    """Gom mọi số liệu tổng quan của kho project vào một phản hồi.
+
+    Level và track nào chưa có project vẫn xuất hiện trong danh sách với số
+    project bằng không, để frontend dựng đủ sáu mục lục mà không phải đoán.
+    """
+    by_level = count_projects_by_level(db)
+    by_track = count_projects_by_track(db)
+
+    return CatalogStats(
+        projects=sum(by_level.values()),
+        skills=db.scalar(select(func.count(Skill.id))) or 0,
+        roadmaps=db.scalar(select(func.count(Roadmap.id))) or 0,
+        by_level=[
+            LevelCount(level=LevelRead.model_validate(level), projects=by_level.get(level.id, 0))
+            for level in list_levels(db)
+        ],
+        by_track=[
+            TrackCount(track=TrackRead.model_validate(track), projects=by_track.get(track.id, 0))
+            for track in list_tracks(db)
+        ],
+    )

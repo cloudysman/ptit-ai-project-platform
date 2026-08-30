@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password, verify_password
@@ -11,7 +12,7 @@ from app.schemas.auth import UserCreate
 
 
 class EmailAlreadyUsed(Exception):
-    """Email đã có người dùng khác đăng ký."""
+    """Thư điện tử đã có người dùng khác đăng ký."""
 
 
 class UsernameAlreadyUsed(Exception):
@@ -23,7 +24,7 @@ def get_user_by_id(db: Session, user_id: int) -> User | None:
 
 
 def get_user_by_identifier(db: Session, identifier: str) -> User | None:
-    """Tìm người dùng theo email hoặc username, không phân biệt chữ hoa chữ thường."""
+    """Tìm người dùng theo thư điện tử hoặc username, không phân biệt hoa thường."""
     normalized = identifier.strip().lower()
     return db.scalar(
         select(User).where(or_(func.lower(User.email) == normalized, User.username == normalized))
@@ -50,7 +51,17 @@ def register_user(db: Session, payload: UserCreate) -> User:
         hashed_password=hash_password(payload.password),
     )
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # Hai yêu cầu đăng ký cùng một thư điện tử có thể cùng qua được phần
+        # kiểm tra ở trên rồi mới đụng nhau ở ràng buộc của cơ sở dữ liệu. Khi
+        # đó vẫn phải trả về đúng lỗi trùng lặp thay vì lỗi của máy chủ.
+        db.rollback()
+        if db.scalar(select(User.id).where(func.lower(User.email) == email)):
+            raise EmailAlreadyUsed from None
+        raise UsernameAlreadyUsed from None
+
     db.refresh(user)
     return user
 

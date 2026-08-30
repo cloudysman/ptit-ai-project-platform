@@ -18,5 +18,5 @@ def read_leaderboard(
     db: DbSession,
     limit: Annotated[int, Query(ge=1, le=100, description="Số người muốn xem.")] = 20,
 ) -> list[LeaderboardEntry]:
-    """Bảng xếp hạng theo tổng XP, người nhiều XP nhất đứng đầu."""
-    return [LeaderboardEntry(**row) for row in progress_service.leaderboard(db, limit)]
+    """Bảng xếp hạng theo điểm tích luỹ, người nhiều điểm nhất đứng đầu."""
+    return progress_service.leaderboard(db, limit)

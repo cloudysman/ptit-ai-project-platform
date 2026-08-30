@@ -6,4 +6,7 @@ __pycache__/
 data/*.db
 data/*.db-wal
 data/*.db-shm
+
+# Ảnh đại diện do người dùng tải lên, là dữ liệu chạy thật chứ không phải mã nguồn.
+data/anh-dai-dien/
 .ruff_cache/

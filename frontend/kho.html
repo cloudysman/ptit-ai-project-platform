@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kho project · Nền tảng học tập theo project</title>
+<meta name="description" content="Toàn bộ project của nền tảng, lọc theo level, track, quy mô và thời gian.">
+<link rel="icon" href="anh/logo-khoa-ai.png" type="image/png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="vach-cuon"><i id="vach-cuon-thanh"></i></div>
+
+<header class="dau-trang">
+  <a class="hieu" href="/">
+    <img class="hieu-logo" src="anh/logo-khoa-ai.png" width="415" height="418" alt="Logo Khoa Trí tuệ nhân tạo">
+    <img class="hieu-logo hieu-logo-nho" src="anh/logo-hoc-vien.png" width="50" height="60" alt="Logo Học viện Công nghệ Bưu chính Viễn thông">
+    <span class="hieu-chu">
+      <span class="hieu-ten">Khoa Trí tuệ nhân tạo</span>
+      <span class="hieu-phu">Học viện Công nghệ Bưu chính Viễn thông</span>
+    </span>
+  </a>
+  <nav class="dieu-huong">
+    <a href="/">Trang chủ</a>
+    <a href="/#lo-trinh-nghe">Lộ trình</a>
+    <a href="/#giang-vien">Giảng viên</a>
+  </nav>
+  <div class="dau-trang-phai" id="khu-tai-khoan"></div>
+</header>
+
+<section class="kho-dau">
+  <p class="nhan-dan">Toàn bộ kho</p>
+  <h1 id="kho-tieu-de">Kho project</h1>
+  <p class="dan-giai" id="kho-ghi-chu">Đang tải số liệu của kho…</p>
+</section>
+
+<section class="kho-than">
+  <form class="bo-loc" id="bo-loc">
+    <div class="bo-loc-hang">
+      <input type="search" id="o-tim" name="q" maxlength="100" placeholder="Tìm theo tên hoặc tóm tắt project" aria-label="Tìm project">
+      <label class="o-sap-xep">
+        <span>Sắp xếp</span>
+        <select id="o-sap-xep" name="sort">
+          <option value="level">Level từ thấp lên cao</option>
+          <option value="-level">Level từ cao xuống thấp</option>
+          <option value="hours">Thời gian tăng dần</option>
+          <option value="-hours">Thời gian giảm dần</option>
+          <option value="points">Điểm tăng dần</option>
+          <option value="-points">Điểm giảm dần</option>
+          <option value="title">Theo tên project</option>
+        </select>
+      </label>
+    </div>
+
+    <fieldset class="bo-loc-nhom">
+      <legend>Level</legend>
+      <div class="the-loc" id="loc-level"></div>
+    </fieldset>
+
+    <fieldset class="bo-loc-nhom">
+      <legend>Track</legend>
+      <div class="the-loc" id="loc-track"></div>
+    </fieldset>
+
+
+    <div class="bo-loc-hang">
+      <label class="o-gio">Từ
+        <input type="number" id="o-gio-min" name="min_hours" min="1" max="1000" placeholder="1">
+        <span>tới</span>
+        <input type="number" id="o-gio-max" name="max_hours" min="1" max="1000" placeholder="60">
+        <span>giờ</span>
+      </label>
+      <button type="button" class="nut nut-vien" id="nut-xoa-loc">Bỏ hết bộ lọc</button>
+    </div>
+  </form>
+
+  <p class="kho-ket-qua" id="kho-ket-qua" role="status" aria-live="polite"></p>
+  <div class="bang-hang" id="danh-sach"><p class="dang-tai">Đang tải danh sách project…</p></div>
+
+  <nav class="phan-trang" id="phan-trang" aria-label="Chuyển trang"></nav>
+</section>
+
+<footer class="chan-trang">
+  <span>© 2026 Học viện Công nghệ Bưu chính Viễn thông · Khoa Trí tuệ nhân tạo</span>
+  <a href="https://ai.ptit.edu.vn/">ai.ptit.edu.vn</a>
+</footer>
+
+<div class="lop-nen" id="lop-nen"></div>
+
+<aside class="bang" id="bang-project" aria-hidden="true">
+  <div class="bang-dau">
+    <p class="bang-nhan" id="bang-project-nhan"></p>
+    <button type="button" class="nut-dong" data-dong>Đóng ✕</button>
+  </div>
+  <div id="bang-project-than"></div>
+</aside>
+
+<aside class="bang" id="bang-tai-khoan" aria-hidden="true">
+  <div class="bang-dau">
+    <p class="bang-nhan">Tài khoản</p>
+    <button type="button" class="nut-dong" data-dong>Đóng ✕</button>
+  </div>
+  <div id="bang-tai-khoan-than"></div>
+</aside>
+
+<aside class="bang" id="bang-cham-bai" aria-hidden="true">
+  <div class="bang-dau">
+    <p class="bang-nhan">Chấm bài</p>
+    <button type="button" class="nut-dong" data-dong>Đóng ✕</button>
+  </div>
+  <div id="bang-cham-bai-than"></div>
+</aside>
+
+<dialog id="hop-dang-nhap">
+  <form method="dialog" class="hop-dau">
+    <p class="bang-nhan">Tài khoản</p>
+    <button type="submit" class="nut-dong">Đóng ✕</button>
+  </form>
+  <div class="doi-che-do" id="doi-che-do">
+    <button type="button" data-che-do="dang-nhap" class="dang-chon">Đăng nhập</button>
+    <button type="button" data-che-do="dang-ky">Đăng ký</button>
+  </div>
+  <form id="mau-dang-nhap" class="mau" novalidate>
+    <label>Thư điện tử hoặc username
+      <input type="text" name="identifier" autocomplete="username" required>
+    </label>
+    <label>Mật khẩu
+      <input type="password" name="password" autocomplete="current-password" required>
+    </label>
+    <p class="mau-loi" role="alert"></p>
+    <button type="submit" class="nut nut-day">Đăng nhập</button>
+  </form>
+  <form id="mau-dang-ky" class="mau" novalidate hidden>
+    <label>Thư điện tử
+      <input type="email" name="email" autocomplete="email" required>
+    </label>
+    <label>Username
+      <input type="text" name="username" autocomplete="off" required minlength="3" maxlength="50" placeholder="vidu: congtt" aria-describedby="dan-username">
+    </label>
+    <p class="mau-chu-dan" id="dan-username">Chữ thường, chữ số và dấu gạch dưới, từ 3 đến 50 ký tự. Đây không phải thư điện tử.</p>
+    <label>Họ tên hiển thị, có thể bỏ trống
+      <input type="text" name="display_name" autocomplete="name" maxlength="100">
+    </label>
+    <label>Mật khẩu
+      <input type="password" name="password" autocomplete="new-password" required minlength="8" maxlength="64" aria-describedby="dan-mat-khau">
+    </label>
+    <p class="mau-chu-dan" id="dan-mat-khau">Từ 8 đến 64 ký tự.</p>
+    <p class="mau-loi" role="alert"></p>
+    <button type="submit" class="nut nut-day">Tạo tài khoản</button>
+  </form>
+</dialog>
+
+<div class="thong-bao" id="thong-bao" role="status" aria-live="polite"></div>
+
+<script type="module" src="js/app-kho.js"></script>
+</body>
+</html>

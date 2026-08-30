@@ -1,11 +1,11 @@
-"""Gợi ý project tiếp theo cho một người dùng."""
+"""Đề xuất project tiếp theo cho một người dùng."""
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter
 from dataclasses import dataclass
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.catalog import Project, project_prerequisite
@@ -28,59 +28,50 @@ PROJECTS_PER_LEVEL = 2
 MAX_LEVEL = 5
 SHORT_PROJECT_HOURS = 8
 
+_NO_PREREQUISITE: frozenset[int] = frozenset()
+
 
 @dataclass(slots=True)
 class Recommendation:
-    """Một project được gợi ý kèm điểm ưu tiên và lý do."""
+    """Một project được đề xuất kèm điểm ưu tiên và lý do."""
 
     project: Project
     score: float
     reason: str
 
 
-def _target_level(db: Session, completed: set[int]) -> int:
-    """Suy ra level nên làm tiếp.
+def _target_level(level_counts: Counter[int]) -> int:
+    """Suy ra level nên làm tiếp từ số project đã hoàn thành ở từng level.
 
     Người dùng chỉ được đẩy lên level cao hơn sau khi đã hoàn thành đủ số project
     ở level cao nhất hiện có, để tránh nhảy cóc rồi tắc.
     """
-    if not completed:
+    if not level_counts:
         return 0
 
-    rows = db.execute(
-        select(Project.level_id, func.count(Project.id))
-        .where(Project.id.in_(completed))
-        .group_by(Project.level_id)
-    ).all()
-    counts = dict(rows)
-    highest = max(counts)
-
-    if counts[highest] >= PROJECTS_PER_LEVEL:
+    highest = max(level_counts)
+    if level_counts[highest] >= PROJECTS_PER_LEVEL:
         return min(highest + 1, MAX_LEVEL)
     return highest
 
 
-def _favorite_track(db: Session, completed: set[int]) -> int | None:
-    """Track mà người dùng đã hoàn thành nhiều project nhất."""
-    if not completed:
-        return None
+def _favorite_track(track_counts: Counter[int]) -> int | None:
+    """Track mà người dùng đã hoàn thành nhiều project nhất.
 
-    row = db.execute(
-        select(Project.track_id, func.count(Project.id))
-        .where(Project.id.in_(completed))
-        .group_by(Project.track_id)
-        .order_by(func.count(Project.id).desc(), Project.track_id.asc())
-        .limit(1)
-    ).first()
-    return row[0] if row else None
+    Khi hai track bằng điểm thì lấy track có id nhỏ hơn, để cùng một dữ liệu vào
+    luôn cho ra cùng một kết quả.
+    """
+    if not track_counts:
+        return None
+    return min(track_counts, key=lambda track_id: (-track_counts[track_id], track_id))
 
 
 def _describe(project: Project, target_level: int, favorite_track_id: int | None) -> str:
-    """Viết lý do gợi ý bằng một câu ngắn cho frontend hiển thị."""
+    """Viết lý do đề xuất bằng một câu ngắn cho frontend hiển thị."""
     if project.level_id == target_level and project.track_id == favorite_track_id:
         return f"Đúng level {target_level} và thuộc track bạn đang theo."
     if project.level_id == target_level:
-        return f"Đúng level {target_level} bạn nên làm tiếp."
+        return f"Đúng level {target_level} mà bạn nên làm tiếp."
     if project.track_id == favorite_track_id:
         return "Thuộc track bạn đang theo."
     if project.estimated_hours <= SHORT_PROJECT_HOURS:
@@ -91,9 +82,10 @@ def _describe(project: Project, target_level: int, favorite_track_id: int | None
 def recommend(db: Session, user: User, limit: int) -> list[Recommendation]:
     """Chọn ra các project nên làm tiếp, sắp theo điểm ưu tiên giảm dần.
 
-    Toàn bộ phép tính chạy trên tập project đã xuất bản, vốn chỉ vài trăm bản ghi,
-    nên nạp một lần rồi tính trong bộ nhớ nhanh hơn nhiều so với việc dựng một câu
-    lệnh SQL phức tạp cho công thức tính điểm.
+    Việc tính điểm chạy trên toàn bộ kho project nên chỉ đọc năm cột: bốn cột
+    tham gia công thức, cùng một cột để bỏ qua project chưa xuất bản. Đối tượng
+    đầy đủ, kèm level, track và skill, chỉ được nạp cho đúng những project lọt
+    vào danh sách trả về.
     """
     completed = completed_project_ids(db, user.id)
     pending = set(
@@ -106,48 +98,80 @@ def recommend(db: Session, user: User, limit: int) -> list[Recommendation]:
     )
     excluded = completed | pending
 
-    projects = list(db.scalars(select(Project).where(Project.is_published.is_(True))).all())
-    if not projects:
+    rows = db.execute(
+        select(
+            Project.id,
+            Project.level_id,
+            Project.track_id,
+            Project.estimated_hours,
+            Project.is_published,
+        )
+    ).all()
+    if not rows:
         return []
 
     # Nạp toàn bộ quan hệ tiên quyết bằng đúng một truy vấn.
-    prerequisites: dict[int, set[int]] = defaultdict(set)
-    unlock_counts: dict[int, int] = defaultdict(int)
+    prerequisites: dict[int, set[int]] = {}
+    unlock_counts: Counter[int] = Counter()
     for project_id, prerequisite_id in db.execute(select(project_prerequisite)).all():
-        prerequisites[project_id].add(prerequisite_id)
+        prerequisites.setdefault(project_id, set()).add(prerequisite_id)
         unlock_counts[prerequisite_id] += 1
 
-    target_level = _target_level(db, completed)
-    favorite_track_id = _favorite_track(db, completed)
-    touched_tracks = {project.track_id for project in projects if project.id in completed}
-
-    results: list[Recommendation] = []
-    for project in projects:
-        if project.id in excluded:
+    # Số project đã hoàn thành theo level và theo track được đếm ngay trên tập vừa
+    # đọc, nên không cần thêm truy vấn gộp riêng cho từng thứ.
+    level_counts: Counter[int] = Counter()
+    track_counts: Counter[int] = Counter()
+    touched_tracks: set[int] = set()
+    for row in rows:
+        if row.id not in completed:
             continue
-        # Chỉ gợi ý project đã mở khoá, tức mọi project tiên quyết đều đã hoàn thành.
-        if not prerequisites[project.id] <= completed:
+        level_counts[row.level_id] += 1
+        track_counts[row.track_id] += 1
+        if row.is_published:
+            touched_tracks.add(row.track_id)
+
+    target_level = _target_level(level_counts)
+    favorite_track_id = _favorite_track(track_counts)
+
+    # Mỗi phần tử gồm điểm ưu tiên, level và id, đủ để sắp xếp mà chưa cần dựng
+    # đối tượng project.
+    scored: list[tuple[float, int, int]] = []
+    for row in rows:
+        if not row.is_published or row.id in excluded:
+            continue
+        # Chỉ đề xuất project đã mở khoá, tức mọi project tiên quyết đều đã hoàn thành.
+        if not prerequisites.get(row.id, _NO_PREREQUISITE) <= completed:
             continue
 
-        score = WEIGHT_LEVEL_MATCH - WEIGHT_LEVEL_PENALTY * abs(project.level_id - target_level)
-        if project.track_id == favorite_track_id:
+        score = WEIGHT_LEVEL_MATCH - WEIGHT_LEVEL_PENALTY * abs(row.level_id - target_level)
+        if row.track_id == favorite_track_id:
             score += WEIGHT_FAVORITE_TRACK
-        elif project.track_id not in touched_tracks:
+        elif row.track_id not in touched_tracks:
             score += WEIGHT_NEW_TRACK
-        if project.estimated_hours <= SHORT_PROJECT_HOURS:
+        if row.estimated_hours <= SHORT_PROJECT_HOURS:
             score += WEIGHT_SHORT_PROJECT
-        score += min(WEIGHT_UNLOCK * unlock_counts[project.id], MAX_UNLOCK_BONUS)
+        score += min(WEIGHT_UNLOCK * unlock_counts[row.id], MAX_UNLOCK_BONUS)
 
         if score <= 0:
             continue
+        scored.append((round(score, 2), row.level_id, row.id))
 
-        results.append(
-            Recommendation(
-                project=project,
-                score=round(score, 2),
-                reason=_describe(project, target_level, favorite_track_id),
-            )
+    scored.sort(key=lambda item: (-item[0], item[1], item[2]))
+    top = scored[:limit]
+    if not top:
+        return []
+
+    projects = {
+        project.id: project
+        for project in db.scalars(
+            select(Project).where(Project.id.in_([project_id for _, _, project_id in top]))
+        ).all()
+    }
+    return [
+        Recommendation(
+            project=projects[project_id],
+            score=score,
+            reason=_describe(projects[project_id], target_level, favorite_track_id),
         )
-
-    results.sort(key=lambda item: (-item.score, item.project.level_id, item.project.id))
-    return results[:limit]
+        for score, _, project_id in top
+    ]

@@ -2,37 +2,37 @@
   {
     "id": 0,
     "slug": "explore",
-    "name": "Explore",
+    "name": "Nhập môn",
     "description": "Làm quen với công cụ, chạy được chương trình đầu tiên và đọc hiểu dữ liệu."
   },
   {
     "id": 1,
     "slug": "build",
-    "name": "Build",
+    "name": "Cơ sở",
     "description": "Tự xây dựng một chương trình hoàn chỉnh nhỏ từ đầu đến cuối."
   },
   {
     "id": 2,
     "slug": "think",
-    "name": "Think",
+    "name": "Vận dụng",
     "description": "Chọn phương pháp, so sánh các phương án và giải thích được kết quả."
   },
   {
     "id": 3,
     "slug": "engineer",
-    "name": "Engineer",
+    "name": "Nâng cao",
     "description": "Viết code có cấu trúc, có kiểm thử và xử lý được dữ liệu lớn hơn."
   },
   {
     "id": 4,
     "slug": "ship",
-    "name": "Ship",
+    "name": "Thực chiến",
     "description": "Đưa sản phẩm tới người dùng thật và giữ cho nó chạy ổn định."
   },
   {
     "id": 5,
     "slug": "research",
-    "name": "Research",
+    "name": "Nghiên cứu",
     "description": "Đặt câu hỏi mở, thiết kế thí nghiệm và viết báo cáo về kết quả."
   }
 ]

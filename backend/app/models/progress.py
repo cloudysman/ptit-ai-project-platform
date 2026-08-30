@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     CheckConstraint,
-    DateTime,
     Enum,
     ForeignKey,
     Index,
@@ -17,7 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, utcnow
+from app.db.base import Base, UtcDateTime, utcnow
 from app.models.enums import BadgeRule, SubmissionStatus
 
 if TYPE_CHECKING:  # pragma: no cover - chỉ phục vụ công cụ kiểm tra kiểu
@@ -29,7 +28,7 @@ class Submission(Base):
     """Một lần người dùng nộp kết quả của một project.
 
     Người dùng được nộp lại nhiều lần cho cùng một project khi bài nộp trước bị
-    trả về. Chỉ bài nộp đầu tiên được duyệt mới cộng XP.
+    trả về. Chỉ bài nộp đầu tiên được duyệt mới cộng điểm tích luỹ.
     """
 
     __tablename__ = "submission"
@@ -61,13 +60,13 @@ class Submission(Base):
     )
     score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     feedback: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    # Số XP thực sự đã cộng cho người dùng nhờ bài nộp này.
-    awarded_xp: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Số điểm tích luỹ thực sự đã cộng cho người dùng nhờ bài nộp này.
+    awarded_points: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     submitted_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, nullable=False, index=True
+        UtcDateTime, default=utcnow, nullable=False, index=True
     )
-    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     reviewer_id: Mapped[int | None] = mapped_column(
         ForeignKey("user.id", ondelete="SET NULL"), nullable=True
     )
@@ -111,9 +110,7 @@ class UserBadge(Base):
     badge_id: Mapped[int] = mapped_column(
         ForeignKey("badge.id", ondelete="CASCADE"), primary_key=True
     )
-    awarded_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, nullable=False
-    )
+    awarded_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utcnow, nullable=False)
 
     user: Mapped[User] = relationship(back_populates="badges")
     badge: Mapped[Badge] = relationship(lazy="selectin")

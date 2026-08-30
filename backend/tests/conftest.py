@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-_TEMP_DIR = Path(tempfile.mkdtemp(prefix="project200-test-"))
+_TEMP_DIR = Path(tempfile.mkdtemp(prefix="nen-tang-project-test-"))
 os.environ["DATABASE_URL"] = f"sqlite:///{(_TEMP_DIR / 'test.db').as_posix()}"
 os.environ["SECRET_KEY"] = "khoa-chi-dung-cho-kiem-thu-du-dai-32-byte"
 
@@ -27,6 +27,7 @@ from app.db.session import SessionFactory, engine  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.user import User  # noqa: E402
 from app.seed.loader import load_seed  # noqa: E402
+from app.services import chan_doan_mat_khau  # noqa: E402
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -53,12 +54,18 @@ def db() -> Iterator[Session]:
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     """Client gọi API. Dùng chung một ứng dụng với cấu hình đã trỏ sang file tạm."""
+    # Bộ đếm lần đăng nhập sai nằm trong bộ nhớ của tiến trình và sống lâu hơn
+    # một bài kiểm thử. Xoá trước mỗi bài để những lần đăng nhập sai của bài này
+    # không làm bài sau bị chặn.
+    chan_doan_mat_khau.xoa_het()
     with TestClient(app) as test_client:
         yield test_client
 
 
 # Bộ đếm dùng chung cho cả phiên kiểm thử. Cơ sở dữ liệu tồn tại suốt phiên nên
 # username phải khác nhau giữa mọi lần gọi, kể cả ở các bài kiểm thử khác nhau.
+MAT_KHAU_MAU = "matkhau12345"
+
 _user_counter = itertools.count(1)
 
 
@@ -66,7 +73,7 @@ _user_counter = itertools.count(1)
 def user_factory(client: TestClient):
     """Tạo một người dùng mới và trả về thông tin kèm tiêu đề xác thực."""
 
-    def create(is_admin: bool = False, db: Session | None = None) -> dict:
+    def create(is_mentor: bool = False, db: Session | None = None) -> dict:
         index = next(_user_counter)
         username = f"nguoidung{index}"
         response = client.post(
@@ -74,17 +81,17 @@ def user_factory(client: TestClient):
             json={
                 "email": f"{username}@example.com",
                 "username": username,
-                "password": "matkhau12345",
+                "password": MAT_KHAU_MAU,
                 "display_name": f"Người dùng {index}",
             },
         )
         assert response.status_code == 201, response.text
         payload = response.json()
 
-        if is_admin:
-            assert db is not None, "Cần truyền session để nâng quyền quản trị."
+        if is_mentor:
+            assert db is not None, "Cần truyền session để đặt quyền giảng viên."
             account = db.get(User, payload["user"]["id"])
-            account.is_admin = True
+            account.is_mentor = True
             db.commit()
 
         return {

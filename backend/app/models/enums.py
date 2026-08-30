@@ -5,16 +5,6 @@ from __future__ import annotations
 from enum import StrEnum
 
 
-class ProjectType(StrEnum):
-    """Quy mô của một project, quyết định khối lượng công việc người dùng phải làm."""
-
-    MICRO = "micro"
-    STANDARD = "standard"
-    PRODUCT = "product"
-    ADVANCED = "advanced"
-    RESEARCH = "research"
-
-
 class SubmissionStatus(StrEnum):
     """Trạng thái của một bài nộp."""
 
@@ -30,10 +20,23 @@ class BadgeRule(StrEnum):
     - PROJECT_COUNT: hoàn thành đủ số project bất kỳ.
     - TRACK_COUNT: hoàn thành đủ số project trong một track cụ thể.
     - LEVEL_REACHED: hoàn thành ít nhất một project ở level yêu cầu.
-    - XP_REACHED: tích luỹ đủ số XP.
+    - POINTS_REACHED: tích luỹ đủ số điểm.
     """
 
     PROJECT_COUNT = "project_count"
     TRACK_COUNT = "track_count"
     LEVEL_REACHED = "level_reached"
-    XP_REACHED = "xp_reached"
+    POINTS_REACHED = "points_reached"
+
+
+class ProjectSort(StrEnum):
+    """Cách sắp xếp danh sách project. Dấu trừ ở đầu nghĩa là sắp giảm dần."""
+
+    LEVEL = "level"
+    LEVEL_DESC = "-level"
+    HOURS = "hours"
+    HOURS_DESC = "-hours"
+    POINTS = "points"
+    POINTS_DESC = "-points"
+    NEWEST = "newest"
+    TITLE = "title"

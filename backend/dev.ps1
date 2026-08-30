@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Các lệnh hay dùng của backend Project 200.
+    Các lệnh hay dùng của backend nền tảng học tập theo project.
 
 .DESCRIPTION
     Mọi lệnh đều gọi Python trong .venv của project, không dùng Python toàn cục.
@@ -32,7 +32,7 @@ Push-Location $PSScriptRoot
 try {
     switch ($Command) {
         'run' {
-            & $Python -m uvicorn app.main:app --host 127.0.0.1 --port 8421 --reload
+            & $Python -m app --reload
         }
         'seed' {
             if ($AdminPassword) {

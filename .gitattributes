@@ -1,0 +1,7 @@
+# Chuẩn hoá ký tự kết thúc dòng để lịch sử thay đổi không bị nhiễu bởi khác biệt
+# giữa Windows và các hệ điều hành khác.
+* text=auto
+
+# Hai loại file dưới đây do trình thông dịch của Windows chạy, giữ nguyên CRLF.
+*.ps1 text eol=crlf
+*.cmd text eol=crlf

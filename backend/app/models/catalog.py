@@ -7,7 +7,6 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Column,
-    Enum,
     ForeignKey,
     Index,
     Integer,
@@ -19,7 +18,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
-from app.models.enums import ProjectType
 
 # Một project cần nhiều skill, một skill xuất hiện ở nhiều project.
 project_skill = Table(
@@ -53,6 +51,27 @@ class Level(Base):
     projects: Mapped[list[Project]] = relationship(back_populates="level")
 
 
+class Mentor(Base):
+    """Giảng viên phụ trách một hoặc nhiều track.
+
+    Ảnh chân dung chỉ lưu tên tệp, ví dụ pham-van-cuong.jpg. Tệp ảnh nằm trong
+    thư mục anh của frontend, nên backend không phải giữ dữ liệu nhị phân và
+    giao diện chỉ việc ghép tên tệp vào đường dẫn thư mục đó.
+    """
+
+    __tablename__ = "mentor"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    slug: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(96), nullable=False)
+    title: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    bio: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    photo: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    tracks: Mapped[list[Track]] = relationship(back_populates="mentor")
+
+
 class Track(Base):
     """Nhóm chuyên môn của project, ví dụ Computer Vision hay Deployment."""
 
@@ -63,7 +82,13 @@ class Track(Base):
     name: Mapped[str] = mapped_column(String(96), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Người phụ trách của cả track. Project lấy người phụ trách theo track của
+    # mình, nên một project không cần cột riêng.
+    mentor_id: Mapped[int | None] = mapped_column(
+        ForeignKey("mentor.id", ondelete="SET NULL"), nullable=True
+    )
 
+    mentor: Mapped[Mentor | None] = relationship(back_populates="tracks", lazy="selectin")
     projects: Mapped[list[Project]] = relationship(back_populates="track")
 
 
@@ -88,7 +113,7 @@ class Project(Base, TimestampMixin):
         Index("ix_project_level_track", "level_id", "track_id"),
         Index("ix_project_published_level", "is_published", "level_id"),
         CheckConstraint("estimated_hours > 0", name="positive_estimated_hours"),
-        CheckConstraint("xp_reward >= 0", name="non_negative_xp_reward"),
+        CheckConstraint("reward_points >= 0", name="non_negative_reward_points"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -108,15 +133,8 @@ class Project(Base, TimestampMixin):
     track_id: Mapped[int] = mapped_column(
         ForeignKey("track.id", ondelete="RESTRICT"), nullable=False, index=True
     )
-    project_type: Mapped[ProjectType] = mapped_column(
-        Enum(ProjectType, native_enum=False, length=16, validate_strings=True),
-        nullable=False,
-        default=ProjectType.STANDARD,
-        index=True,
-    )
-
     estimated_hours: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
-    xp_reward: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    reward_points: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
 
     dataset_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     # Hai cột dưới đây là danh sách chuỗi. Dùng JSON vì chúng chỉ được đọc kèm
@@ -147,7 +165,7 @@ class Project(Base, TimestampMixin):
 
 
 class Hint(Base):
-    """Gợi ý theo tầng của AI Mentor.
+    """Gợi ý theo tầng cho một project.
 
     Tầng càng cao thì gợi ý càng cụ thể. Cách chia tầng giữ cho người dùng phải
     tự nghĩ trước thay vì đọc ngay lời giải.

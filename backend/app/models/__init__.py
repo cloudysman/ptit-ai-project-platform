@@ -3,6 +3,7 @@
 from app.models.catalog import (
     Hint,
     Level,
+    Mentor,
     Project,
     Roadmap,
     RoadmapStep,
@@ -11,7 +12,7 @@ from app.models.catalog import (
     project_prerequisite,
     project_skill,
 )
-from app.models.enums import BadgeRule, ProjectType, SubmissionStatus
+from app.models.enums import BadgeRule, ProjectSort, SubmissionStatus
 from app.models.progress import Badge, Submission, UserBadge
 from app.models.user import User
 
@@ -20,8 +21,9 @@ __all__ = [
     "BadgeRule",
     "Hint",
     "Level",
+    "Mentor",
     "Project",
-    "ProjectType",
+    "ProjectSort",
     "Roadmap",
     "RoadmapStep",
     "Skill",

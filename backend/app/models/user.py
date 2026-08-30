@@ -17,20 +17,23 @@ class User(Base, TimestampMixin):
     """Tài khoản của một người dùng trên nền tảng."""
 
     __tablename__ = "user"
-    __table_args__ = (CheckConstraint("total_xp >= 0", name="non_negative_total_xp"),)
+    __table_args__ = (CheckConstraint("total_points >= 0", name="non_negative_total_points"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
     display_name: Mapped[str] = mapped_column(String(100), nullable=False, default="")
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Tên tệp ảnh đại diện trong thư mục data/anh-dai-dien, ví dụ 12.jpg. Chỉ lưu
+    # tên tệp chứ không lưu dữ liệu ảnh, để bảng người dùng không phình ra.
+    avatar: Mapped[str] = mapped_column(String(128), nullable=False, default="")
 
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_mentor: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
-    # Tổng XP được cộng dồn ngay khi một bài nộp được duyệt. Lưu sẵn ở đây để
+    # Điểm tích luỹ được cộng dồn ngay khi một bài nộp được duyệt. Lưu sẵn ở đây để
     # bảng xếp hạng chỉ phải đọc một cột thay vì cộng lại toàn bộ bài nộp.
-    total_xp: Mapped[int] = mapped_column(Integer, nullable=False, default=0, index=True)
+    total_points: Mapped[int] = mapped_column(Integer, nullable=False, default=0, index=True)
 
     submissions: Mapped[list[Submission]] = relationship(
         back_populates="user",

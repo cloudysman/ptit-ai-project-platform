@@ -1,0 +1,34 @@
+[
+  {
+    "slug": "pham-van-cuong",
+    "name": "PGS. TS. Phạm Văn Cường",
+    "title": "Trưởng khoa Trí tuệ nhân tạo",
+    "bio": "Trưởng phòng thí nghiệm nghiên cứu trí tuệ nhân tạo PTIT.AI. Lĩnh vực: thị giác máy tính, nhận dạng hành vi.",
+    "photo": "pham-van-cuong.jpg",
+    "order_index": 1
+  },
+  {
+    "slug": "tran-tien-cong",
+    "name": "TS. Trần Tiến Công",
+    "title": "Phó trưởng khoa Trí tuệ nhân tạo",
+    "bio": "Tiến sĩ khoa học máy tính, Đại học Dankook, Hàn Quốc.",
+    "photo": "tran-tien-cong.jpg",
+    "order_index": 2
+  },
+  {
+    "slug": "do-thanh-ha",
+    "name": "TS. Đỗ Thanh Hà",
+    "title": "Trưởng bộ môn Học máy",
+    "bio": "Lĩnh vực: trí tuệ nhân tạo trong y tế, dữ liệu lớn.",
+    "photo": "do-thanh-ha.jpg",
+    "order_index": 3
+  },
+  {
+    "slug": "vu-hoai-nam",
+    "name": "TS. Vũ Hoài Nam",
+    "title": "Trưởng bộ môn Trí tuệ nhân tạo ứng dụng",
+    "bio": "Gần mười năm nghiên cứu và giảng dạy tại Học viện.",
+    "photo": "vu-hoai-nam.jpg",
+    "order_index": 4
+  }
+]

@@ -9,6 +9,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.core.chuoi import bo_dau
 from app.core.config import settings
 from app.db.base import Base
 
@@ -32,6 +33,20 @@ def _create_engine() -> Engine:
 engine = _create_engine()
 
 
+def _lower_unicode(value: object) -> object:
+    """Hạ chữ hoa theo quy tắc Unicode, dùng để thay hàm lower của SQLite.
+
+    Hàm dựng sẵn của SQLite nhận mọi kiểu giá trị, nên bản thay thế cũng phải
+    trả lại nguyên vẹn những gì không phải chuỗi thay vì ném lỗi.
+    """
+    return value.lower() if isinstance(value, str) else value
+
+
+def _bo_dau_sql(value: object) -> object:
+    """Bản dùng trong SQL của hàm bỏ dấu, cũng phải chịu được giá trị không phải chuỗi."""
+    return bo_dau(value) if isinstance(value, str) else value
+
+
 @event.listens_for(engine, "connect")
 def _configure_sqlite(dbapi_connection, _connection_record) -> None:
     """Bật các tuỳ chọn cần thiết mỗi khi mở một kết nối SQLite mới.
@@ -40,9 +55,21 @@ def _configure_sqlite(dbapi_connection, _connection_record) -> None:
     - journal_mode=WAL: cho phép đọc song song với ghi, hợp với backend nhiều luồng.
     - synchronous=NORMAL: giảm số lần ghi đĩa mà vẫn an toàn khi dùng WAL.
     - busy_timeout: chờ 5 giây thay vì báo lỗi ngay khi cơ sở dữ liệu đang bận.
+
+    Hàm lower dựng sẵn của SQLite chỉ hạ được 26 chữ cái không dấu, nên
+    "Ứng dụng" giữ nguyên chữ Ứ và người tìm bằng chữ thường không ra kết quả.
+    Hàm lower ở đây được thay bằng bản của Python, vốn theo đúng quy tắc Unicode.
+    MySQL và PostgreSQL đã xử lý đúng phần này nên không cần thay.
+
+    Hàm bo_dau là hàm riêng của nền tảng, SQLite không có sẵn. Phần tìm kiếm và
+    phần sắp xếp theo tên project gọi tới nó, nên nó phải được đăng ký lại trên
+    mọi kết nối mới.
     """
     if not settings.is_sqlite:
         return
+
+    dbapi_connection.create_function("lower", 1, _lower_unicode, deterministic=True)
+    dbapi_connection.create_function("bo_dau", 1, _bo_dau_sql, deterministic=True)
 
     cursor = dbapi_connection.cursor()
     try:

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nền tảng học tập theo project · Khoa Trí tuệ nhân tạo</title>
+<meta name="description" content="Kho project xếp theo sáu level, từ dễ đến khó. Sinh viên chọn project, nộp bài, được chấm và nhận điểm tích luỹ.">
+<link rel="icon" href="anh/logo-khoa-ai.png" type="image/png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="vach-cuon"><i id="vach-cuon-thanh"></i></div>
+
+<header class="dau-trang">
+  <a class="hieu" href="#lo-trinh">
+    <img class="hieu-logo" src="anh/logo-khoa-ai.png" width="415" height="418" alt="Logo Khoa Trí tuệ nhân tạo">
+    <img class="hieu-logo hieu-logo-nho" src="anh/logo-hoc-vien.png" width="50" height="60" alt="Logo Học viện Công nghệ Bưu chính Viễn thông">
+    <span class="hieu-chu">
+      <span class="hieu-ten">Khoa Trí tuệ nhân tạo</span>
+      <span class="hieu-phu">Học viện Công nghệ Bưu chính Viễn thông</span>
+    </span>
+  </a>
+  <nav class="dieu-huong">
+    <a href="/kho.html">Kho project</a>
+    <a href="#lo-trinh-nghe">Lộ trình</a>
+    <a href="#xep-hang">Bảng xếp hạng</a>
+    <a href="#giang-vien">Giảng viên</a>
+  </nav>
+  <div class="dau-trang-phai" id="khu-tai-khoan"></div>
+</header>
+
+<section class="mo-dau" id="mo-dau">
+  <div class="mo-dau-den" id="mo-dau-den" aria-hidden="true"></div>
+  <div class="mo-dau-luoi">
+    <div>
+      <p class="nhan-dan">Nền tảng học tập theo project</p>
+      <h1>
+        <span>Sáu level.</span>
+        <em id="tieu-de-so">Đang tải…</em>
+        <span>Bắt đầu từ chỗ vừa sức.</span>
+      </h1>
+      <p class="mo-dau-dan">Mỗi project có bối cảnh, mục tiêu học tập, sản phẩm phải nộp và gợi ý khi bí. Nộp bài xong thì có người chấm; bài đạt thì được cộng điểm tích luỹ và nhận đề xuất cho project kế tiếp.</p>
+      <div class="hang-nut">
+        <a class="nut nut-do" href="#lo-trinh">Xem sáu level</a>
+        <button type="button" class="nut nut-vien" id="nut-ngau-nhien">Chọn ngẫu nhiên một project</button>
+      </div>
+    </div>
+    <div class="mo-dau-hinh">
+      <svg id="hinh-level" viewBox="0 0 260 380" role="img" aria-label="Sáu level của nền tảng và số project của từng level"></svg>
+    </div>
+  </div>
+  <div class="so-lieu" id="so-lieu"></div>
+</section>
+
+<section class="ba-buoc">
+  <p class="nhan-dan hien-dan">Cách dùng</p>
+  <h2 class="hien-dan">Ba bước</h2>
+  <div class="ba-buoc-luoi">
+    <div class="hien-dan">
+      <p class="buoc-so">01</p>
+      <p class="buoc-ten">Chọn một project</p>
+      <p class="buoc-mo">Sáu level xếp từ dễ đến khó. Đọc mô tả level rồi chọn project ở level ứng với sức mình. Lọc thêm theo track nếu bạn muốn đi sâu một hướng.</p>
+    </div>
+    <div class="hien-dan">
+      <p class="buoc-so">02</p>
+      <p class="buoc-ten">Làm rồi nộp bài</p>
+      <p class="buoc-mo">Trang project ghi rõ phải nộp những gì. Làm xong, bạn gửi đường dẫn tới mã nguồn. Bí ở đâu thì mở gợi ý, nhưng gợi ý mở dần theo ba tầng chứ không cho sẵn lời giải.</p>
+    </div>
+    <div class="hien-dan">
+      <p class="buoc-so">03</p>
+      <p class="buoc-ten">Nhận điểm và đi tiếp</p>
+      <p class="buoc-mo">Bài nộp được chấm. Bài đạt thì cộng điểm tích luỹ, đủ điều kiện thì có badge. Hệ thống nhìn vào những project bạn đã hoàn thành để đề xuất project tiếp theo.</p>
+    </div>
+  </div>
+</section>
+
+<section class="lo-trinh" id="lo-trinh">
+  <div class="lo-trinh-dau">
+    <div>
+      <p class="nhan-dan hien-dan">Toàn bộ kho</p>
+      <h2 class="hien-dan">Kho project theo level</h2>
+      <p class="hang-nut hien-dan"><a class="nut nut-do" href="/kho.html" id="nut-xem-kho">Mở trang kho project</a></p>
+    </div>
+    <div class="o-tien-do">
+      <p class="o-tien-do-nhan">Tiến độ của bạn</p>
+      <p class="o-tien-do-so" id="o-tien-do-so">Chưa đăng nhập</p>
+    </div>
+  </div>
+
+
+  <div class="lo-trinh-than">
+    <aside class="thanh-ben">
+      <p class="thanh-ben-nhan">Sáu level</p>
+      <div id="muc-luc-level"></div>
+    </aside>
+    <div class="cot-noi-dung" id="cot-noi-dung">
+      <p class="dang-tai">Đang tải kho project…</p>
+    </div>
+  </div>
+</section>
+
+<div class="dai-chay">
+  <div class="dai-chay-trong" id="dai-chay-trong"></div>
+</div>
+
+<section class="lo-trinh-nghe" id="lo-trinh-nghe">
+  <p class="nhan-dan hien-dan">Đi theo một hướng</p>
+  <h2 class="hien-dan">Lộ trình nghề nghiệp</h2>
+  <div class="lo-trinh-luoi" id="lo-trinh-luoi"></div>
+</section>
+
+
+<section class="xep-hang" id="xep-hang">
+  <p class="nhan-dan hien-dan">Bảng xếp hạng</p>
+  <h2 class="hien-dan">Những người dẫn đầu</h2>
+  <div class="xep-hang-o" id="xep-hang-o"></div>
+</section>
+
+<section class="nhan-su" id="giang-vien">
+  <p class="nhan-dan hien-dan">Nhân sự</p>
+  <h2 class="hien-dan">Giảng viên Khoa Trí tuệ nhân tạo</h2>
+  <div class="nhan-su-luoi" id="nhan-su-luoi"></div>
+</section>
+
+<section class="keu-goi">
+  <div>
+    <h2 id="keu-goi-tieu-de">Bắt đầu từ project đầu tiên</h2>
+    <p id="keu-goi-dan">Tạo một tài khoản là đủ để nộp bài. Tiến độ, điểm tích luỹ và badge được lưu trên máy chủ nên bạn mở ở máy nào cũng thấy.</p>
+    <button type="button" class="nut nut-vang" id="nut-keu-goi">Tạo tài khoản</button>
+  </div>
+  <div class="lien-he">
+    <p>Trụ sở chính · số 122 Hoàng Quốc Việt, phường Nghĩa Đô, thành phố Hà Nội.</p>
+    <p>Cơ sở đào tạo tại Hà Nội · số 96A Trần Phú, phường Hà Đông, thành phố Hà Nội.</p>
+  </div>
+</section>
+
+<footer class="chan-trang">
+  <span>© 2026 Học viện Công nghệ Bưu chính Viễn thông · Khoa Trí tuệ nhân tạo</span>
+  <span>Tên, chức vụ và ảnh giảng viên lấy từ <a href="https://ai.ptit.edu.vn/gioi-thieu/gioi-thieu-ve-nhan-su/">ai.ptit.edu.vn</a>. Việc phân công giảng viên phụ trách track là đề xuất trong bản thiết kế này.</span>
+</footer>
+
+<div class="lop-nen" id="lop-nen"></div>
+
+<aside class="bang" id="bang-project" aria-hidden="true">
+  <div class="bang-dau">
+    <p class="bang-nhan" id="bang-project-nhan"></p>
+    <button type="button" class="nut-dong" data-dong>Đóng ✕</button>
+  </div>
+  <div id="bang-project-than"></div>
+</aside>
+
+<aside class="bang" id="bang-tai-khoan" aria-hidden="true">
+  <div class="bang-dau">
+    <p class="bang-nhan">Tài khoản</p>
+    <button type="button" class="nut-dong" data-dong>Đóng ✕</button>
+  </div>
+  <div id="bang-tai-khoan-than"></div>
+</aside>
+
+<aside class="bang" id="bang-cham-bai" aria-hidden="true">
+  <div class="bang-dau">
+    <p class="bang-nhan">Chấm bài</p>
+    <button type="button" class="nut-dong" data-dong>Đóng ✕</button>
+  </div>
+  <div id="bang-cham-bai-than"></div>
+</aside>
+
+<dialog id="hop-dang-nhap">
+  <form method="dialog" class="hop-dau">
+    <p class="bang-nhan">Tài khoản</p>
+    <button type="submit" class="nut-dong">Đóng ✕</button>
+  </form>
+  <div class="doi-che-do" id="doi-che-do">
+    <button type="button" data-che-do="dang-nhap" class="dang-chon">Đăng nhập</button>
+    <button type="button" data-che-do="dang-ky">Đăng ký</button>
+  </div>
+  <form id="mau-dang-nhap" class="mau" novalidate>
+    <label>Thư điện tử hoặc username
+      <input type="text" name="identifier" autocomplete="username" required>
+    </label>
+    <label>Mật khẩu
+      <input type="password" name="password" autocomplete="current-password" required>
+    </label>
+    <p class="mau-loi" role="alert"></p>
+    <button type="submit" class="nut nut-day">Đăng nhập</button>
+  </form>
+  <form id="mau-dang-ky" class="mau" novalidate hidden>
+    <label>Thư điện tử
+      <input type="email" name="email" autocomplete="email" required>
+    </label>
+    <label>Username
+      <input type="text" name="username" autocomplete="off" required minlength="3" maxlength="50" placeholder="vidu: congtt" aria-describedby="dan-username">
+    </label>
+    <p class="mau-chu-dan" id="dan-username">Chữ thường, chữ số và dấu gạch dưới, từ 3 đến 50 ký tự. Đây không phải thư điện tử.</p>
+    <label>Họ tên hiển thị, có thể bỏ trống
+      <input type="text" name="display_name" autocomplete="name" maxlength="100">
+    </label>
+    <label>Mật khẩu
+      <input type="password" name="password" autocomplete="new-password" required minlength="8" maxlength="64" aria-describedby="dan-mat-khau">
+    </label>
+    <p class="mau-chu-dan" id="dan-mat-khau">Từ 8 đến 64 ký tự.</p>
+    <p class="mau-loi" role="alert"></p>
+    <button type="submit" class="nut nut-day">Tạo tài khoản</button>
+  </form>
+</dialog>
+
+<div class="thong-bao" id="thong-bao" role="status" aria-live="polite"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

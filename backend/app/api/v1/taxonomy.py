@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, status
 from app.api.deps import DbSession
 from app.schemas.catalog import (
     LevelRead,
+    MentorRead,
     RoadmapDetail,
     RoadmapSummary,
     SkillRead,
@@ -27,6 +28,12 @@ def list_levels(db: DbSession) -> list[LevelRead]:
 def list_tracks(db: DbSession) -> list[TrackRead]:
     """Danh sách track."""
     return [TrackRead.model_validate(item) for item in catalog_service.list_tracks(db)]
+
+
+@router.get("/mentors", response_model=list[MentorRead])
+def list_mentors(db: DbSession) -> list[MentorRead]:
+    """Danh sách giảng viên phụ trách, dùng cho mục nhân sự của giao diện."""
+    return [MentorRead.model_validate(item) for item in catalog_service.list_mentors(db)]
 
 
 @router.get("/skills", response_model=list[SkillRead])

@@ -6,6 +6,8 @@ from math import ceil
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.config import settings
+
 
 class ORMModel(BaseModel):
     """Lớp cơ sở cho mọi schema đọc dữ liệu trực tiếp từ model SQLAlchemy."""
@@ -13,11 +15,26 @@ class ORMModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+# Trần của mọi số nguyên nhận từ bên ngoài. SQLite chỉ lưu số nguyên 64 bit, nên
+# một con số lớn hơn thế đi tới tầng truy vấn sẽ làm câu lệnh hỏng và người gọi
+# nhận về lỗi 500 kèm câu tiếng Anh. Chặn ngay ở tầng kiểm tra dữ liệu thì lỗi
+# thành 422 với một câu tiếng Việt, giống mọi giá trị sai khác.
+MAX_SO_NGUYEN = 2**31 - 1
+
+
 class PageParams(BaseModel):
     """Tham số phân trang dùng chung cho mọi API trả về danh sách."""
 
-    page: int = Field(default=1, ge=1, description="Số thứ tự trang, bắt đầu từ 1.")
-    page_size: int = Field(default=20, ge=1, le=100, description="Số bản ghi mỗi trang.")
+    page: int = Field(
+        default=1, ge=1, le=MAX_SO_NGUYEN, description="Số thứ tự trang, bắt đầu từ 1."
+    )
+    # Giới hạn lấy từ cấu hình để chỉ phải sửa một chỗ khi muốn đổi.
+    page_size: int = Field(
+        default=settings.default_page_size,
+        ge=1,
+        le=settings.max_page_size,
+        description="Số bản ghi mỗi trang.",
+    )
 
     @property
     def offset(self) -> int:

@@ -29,7 +29,10 @@ class _PasswordField(BaseModel):
 
 
 class UserCreate(_PasswordField):
-    email: EmailStr
+    # Giới hạn 255 ký tự lấy đúng theo độ rộng cột email trong bảng user. SQLite
+    # không cưỡng chế độ rộng cột, nên nếu không chặn ở đây thì một địa chỉ quá
+    # dài vẫn ghi được, và chỉ hỏng khi đổi sang MySQL hoặc PostgreSQL.
+    email: EmailStr = Field(max_length=255)
     username: str = Field(min_length=3, max_length=50)
     display_name: str = Field(default="", max_length=100)
 
@@ -42,23 +45,45 @@ class UserCreate(_PasswordField):
             raise ValueError("Username chỉ gồm chữ thường, chữ số và dấu gạch dưới.")
         return value
 
+    @field_validator("display_name")
+    @classmethod
+    def strip_display_name(cls, value: str) -> str:
+        """Bỏ khoảng trắng thừa ở hai đầu tên hiển thị.
+
+        Không chuẩn hoá thì một cái tên gồm toàn dấu cách vẫn được coi là có
+        giá trị, và giao diện hiển thị ra một khoảng trống thay vì tên người
+        dùng. Sau khi cắt, chuỗi rỗng sẽ được thay bằng username lúc tạo tài khoản.
+        """
+        return value.strip()
+
 
 class UserLogin(BaseModel):
-    # Cho phép đăng nhập bằng email hoặc username để đỡ phải nhớ mình dùng cái nào.
+    # Cho phép đăng nhập bằng thư điện tử hoặc username để đỡ phải nhớ mình dùng
+    # cái nào.
     identifier: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=1, max_length=64)
+
+    @field_validator("identifier")
+    @classmethod
+    def strip_identifier(cls, value: str) -> str:
+        """Cắt khoảng trắng hai đầu, thường do người dùng dán nhầm cả dấu cách."""
+        value = value.strip()
+        if not value:
+            raise ValueError("Cần điền thư điện tử hoặc username.")
+        return value
 
 
 class UserRead(ORMModel):
     id: int
-    # Kiểu chuỗi thường chứ không phải EmailStr. Email đã được kiểm tra ở lúc đăng
-    # ký, kiểm tra lại lúc đọc ra chỉ khiến API hỏng khi cơ sở dữ liệu có sẵn một
-    # bản ghi cũ không qua được bộ kiểm tra hiện tại.
+    # Kiểu chuỗi thường chứ không phải EmailStr. Thư điện tử đã được kiểm tra lúc
+    # đăng ký, kiểm tra lại lúc đọc ra chỉ khiến API hỏng khi cơ sở dữ liệu có
+    # sẵn một bản ghi cũ không qua được bộ kiểm tra hiện tại.
     email: str
     username: str
     display_name: str
-    total_xp: int
-    is_admin: bool
+    avatar: str = Field(default="", description="Tên tệp ảnh đại diện, rỗng nếu chưa có.")
+    total_points: int
+    is_mentor: bool
 
 
 class Token(BaseModel):
