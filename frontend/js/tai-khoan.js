@@ -76,6 +76,9 @@ export function veKhuTaiKhoan() {
   // thanh điều hướng phải xuống hàng riêng sớm hơn. Tệp kiểu đọc trạng thái này
   // qua lớp trên thẻ body, xem hai khối @media của phần đầu trang.
   document.body.classList.toggle('da-dang-nhap', phien.daDangNhap);
+  // Tài khoản giảng viên có thêm nút chấm bài nên khu tài khoản còn rộng hơn nữa,
+  // và ngưỡng cho thanh điều hướng xuống hàng cũng phải cao hơn một bậc.
+  document.body.classList.toggle('la-giang-vien', phien.laGiangVien);
 
   if (!phien.daDangNhap) {
     khu.innerHTML = '<button type="button" class="nut nut-vien" data-mo-dang-nhap>Đăng nhập</button>';

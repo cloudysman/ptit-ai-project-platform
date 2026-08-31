@@ -94,27 +94,34 @@ textarea { resize: vertical; }
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--vien);
 }
-.hieu { display: flex; align-items: center; gap: 10px; color: inherit; }
+.hieu { display: flex; align-items: center; gap: 10px; color: inherit; min-width: 0; }
 .hieu:hover { color: inherit; }
-.hieu-logo { flex: none; width: auto; height: 40px; }
-/* Hai logo phụ cùng cao ba mươi điểm ảnh, thấp hơn logo Khoa vì đây là trang
-   của Khoa. Chúng không bằng bề ngang nhau: logo Học viện đứng nên rộng 25 điểm
-   ảnh, logo Trung tâm nằm ngang nên rộng 38. */
+/* Ba logo nhỏ dần theo thứ bậc: Trung tâm làm ra nền tảng này nên đứng đầu và
+   đứng lớn, rồi tới Khoa, rồi tới Học viện. Cỡ chữ ở cụm bên phải cũng giảm dần
+   theo đúng nhịp đó, nên người xem nhận ra thứ bậc mà không cần đọc kỹ. */
+.hieu-logo { flex: none; width: auto; height: 38px; }
 .hieu-logo-nho { height: 30px; }
-/* Tên khoa viết hoa bằng CSS chứ không viết hoa sẵn trong HTML, để phần chữ
-   trong mã nguồn vẫn đúng chính tả và vẫn đọc được bằng trình đọc màn hình. */
+.hieu-logo-nho + .hieu-logo-nho { height: 26px; }
+/* Đuôi vệt của logo Trung tâm chúi xuống góc dưới, nên ở dải giữa - chỗ mắt đọc
+   nhịp - khối mực của nó kết thúc sớm hơn mép hộp ảnh. Kéo logo kế bên lại gần
+   để ba khoảng hở nhìn ra bằng nhau. */
+.hieu-logo + .hieu-logo-nho { margin-left: -7px; }
+/* Tên Trung tâm viết hoa bằng CSS chứ không viết hoa sẵn trong HTML, để phần chữ
+   trong mã nguồn giữ đúng chính tả tiếng Việt. Lưu ý là Chrome vẫn đưa dạng đã
+   viết hoa vào cây trợ năng, nên cách này không đổi được cách trình đọc màn hình
+   phát âm. */
 /* Vạch ngăn vẽ bằng một lớp phủ cao cố định, không dùng đường viền của khối chữ:
    khối chữ có ba dòng nên cao hơn cụm logo, và đường viền sẽ thò ra hai đầu. */
-.hieu-chu { position: relative; display: block; padding-left: 14px; }
+.hieu-chu { position: relative; display: block; margin-left: 6px; padding-left: 16px; }
 .hieu-chu::before {
   content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
   width: 1px; height: 40px; background: var(--vien-dam);
 }
-.hieu-ten { display: block; font-weight: 700; font-size: 15.5px; line-height: 1.3; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.hieu-ten { display: block; font-weight: 700; font-size: 14.5px; line-height: 1.3; letter-spacing: .045em; text-transform: uppercase; white-space: nowrap; }
 .hieu-phu { display: block; font-size: 12.5px; line-height: 1.35; color: var(--phu); }
-/* Hai dòng phụ đứng liền nhau nên dòng dưới thu hẹp khoảng cách dòng một chút,
-   giữ cả cụm chữ không cao hơn cụm logo bên trái. */
-.hieu-phu + .hieu-phu { line-height: 1.3; }
+/* Dòng phụ thứ hai nhỏ hơn dòng thứ nhất một chút, để ba dòng chữ giảm dần đúng
+   theo nhịp của ba logo bên trái. */
+.hieu-phu + .hieu-phu { font-size: 11.5px; line-height: 1.3; }
 .dieu-huong { display: flex; align-items: center; gap: clamp(14px, 2vw, 26px); font-size: 15px; }
 /* Chỗ hẹp thì cả cụm phải xuống hàng, chứ không được bẻ đôi một mục thành
    "Kho / project". Nhờ nowrap, phần tính bề rộng nhỏ nhất của thanh điều hướng
@@ -139,7 +146,7 @@ textarea { resize: vertical; }
 .the-ten { font-weight: 700; font-size: 14.5px; line-height: 1.25; white-space: nowrap; }
 .the-so { font-size: 12.5px; line-height: 1.2; color: var(--phu); white-space: nowrap; }
 
-.nut-thoat { padding: 8px 10px; font-size: 14px; line-height: 1.2; color: var(--phu); }
+.nut-thoat { padding: 8px 10px; font-size: 14px; line-height: 1.2; color: var(--phu); white-space: nowrap; }
 .nut-thoat:hover { color: var(--do); text-decoration: underline; }
 
 /* Mở đầu */
@@ -486,18 +493,29 @@ dialog::backdrop { background: rgba(14, 11, 8, .42); }
 
 /* Đầu trang phải xuống hàng sớm hơn phần còn lại của trang. Cụm ba logo, thanh
    điều hướng và khu tài khoản cộng lại đã chiếm gần trọn một hàng, nên khi hẹp
-   thì cho thanh điều hướng xuống hàng riêng, thay vì bóp cho chữ gãy đôi. Hai
-   ngưỡng khác nhau vì khu tài khoản lúc đã đăng nhập rộng hơn lúc chưa. */
-@media (max-width: 1140px) {
+   thì cho thanh điều hướng xuống hàng riêng, thay vì bóp cho chữ gãy đôi.
+
+   Ba ngưỡng khác nhau vì khu tài khoản rộng dần theo vai người dùng: khách chỉ
+   có nút đăng nhập, sinh viên có thêm thẻ tên và số liệu, giảng viên có thêm nút
+   chấm bài. Hai lớp da-dang-nhap và la-giang-vien do phần tài khoản gắn lên thẻ
+   body mỗi lần phiên thay đổi. */
+@media (max-width: 1060px) {
+  .dau-trang { flex-wrap: wrap; }
+  .dieu-huong {
+    order: 3; flex: 1 1 100%; gap: 16px; overflow-x: auto; padding-bottom: 2px; font-size: 14px;
+  }
+}
+
+@media (max-width: 1220px) {
   body.da-dang-nhap .dau-trang { flex-wrap: wrap; }
   body.da-dang-nhap .dieu-huong {
     order: 3; flex: 1 1 100%; gap: 16px; overflow-x: auto; padding-bottom: 2px; font-size: 14px;
   }
 }
 
-@media (max-width: 940px) {
-  .dau-trang { flex-wrap: wrap; }
-  .dieu-huong {
+@media (max-width: 1320px) {
+  body.la-giang-vien .dau-trang { flex-wrap: wrap; }
+  body.la-giang-vien .dieu-huong {
     order: 3; flex: 1 1 100%; gap: 16px; overflow-x: auto; padding-bottom: 2px; font-size: 14px;
   }
 }
@@ -522,20 +540,44 @@ dialog::backdrop { background: rgba(14, 11, 8, .42); }
 
 /* Dưới mức này, cụm logo phải nhường chỗ cho khu tài khoản, nếu không thẻ người
    dùng bị đẩy xuống một hàng riêng và đầu trang chiếm gần một phần tư màn hình. */
-@media (max-width: 768px) {
-  .hieu-logo-nho { display: none; }
-  /* Thẻ người dùng cũng thu gọn: bỏ dòng số liệu và cắt tên dài, vì cụm chữ ở
-     đầu trang cộng với thẻ đầy đủ không còn nằm vừa một hàng. Số project và
-     điểm tích luỹ vẫn xem được trong bảng tài khoản. */
+/* Thẻ người dùng thu gọn trước: bỏ dòng số liệu và cắt tên dài, vì cụm ba tên
+   đơn vị cộng với thẻ đầy đủ không còn nằm vừa một hàng. Số project và điểm tích
+   luỹ vẫn xem được trong bảng tài khoản. */
+@media (max-width: 900px) {
   .the-so { display: none; }
-  .the-ten { max-width: 14ch; overflow: hidden; text-overflow: ellipsis; }
-  /* Tên khoa cũng bớt giãn chữ và nhỏ đi nửa cỡ, đủ để cụm chữ và thẻ người
-     dùng cùng nằm trên một hàng thay vì mỗi thứ chiếm một hàng riêng. */
-  .hieu-ten { font-size: 14px; letter-spacing: .04em; }
+  /* Tên Trung tâm bớt giãn chữ và nhỏ đi một cỡ. Tên này dài ba mươi mốt chữ
+     cái nên chính nó quyết định bề ngang cả cụm, và chỉ cần bớt chừng này là
+     cụm chữ với thẻ người dùng lại nằm vừa một hàng. */
+  .hieu-ten { font-size: 13px; letter-spacing: .02em; }
+  .dau-trang { gap: 16px; }
+}
+
+@media (max-width: 810px) {
+  .hieu-logo-nho { display: none; }
   .dau-trang { gap: 14px; }
 }
 
-@media (max-width: 520px) {
+/* Từ đây trở xuống, tên Trung tâm nằm trên một dòng sẽ đẩy thẻ người dùng
+   xuống hàng riêng và đầu trang thành ba tầng. Cho tên xuống hai dòng thì cụm
+   chữ hẹp lại còn một nửa, và cả đầu trang gọn hơn hẳn. Ba chữ cuối được giữ
+   liền khối trong HTML nên chỗ ngắt rơi sau "Đào tạo". */
+@media (max-width: 810px) {
+  /* Chặn bề ngang cụm chữ chứ không chỉ cho phép xuống dòng: flexbox quyết định
+     đẩy một khối xuống hàng dựa trên bề ngang tự nhiên của nó, nên nếu không
+     chặn thì tên vẫn nằm một dòng và thẻ người dùng vẫn bị đẩy xuống. */
+  .hieu-ten { white-space: normal; }
+  .hieu-chu { max-width: 190px; }
+  /* Tên người dùng cắt ngắn, đủ để thẻ vẫn đứng chung hàng với cụm chữ. Chỉ cắt
+     từ đây trở xuống, chứ cắt sớm hơn thì người dùng thấy tên mình bị cụt trong
+     khi hàng vẫn còn trống hơn trăm điểm ảnh. */
+  .the-ten { max-width: 12ch; overflow: hidden; text-overflow: ellipsis; }
+}
+
+/* Cụm nhận diện chiếm trọn một hàng, khu tài khoản và điều hướng xuống dưới.
+   Mốc này đặt ở 640 chứ không phải 520: trong dải giữa hai con số đó, cụm chữ và
+   thẻ người dùng vẫn chưa nằm vừa một hàng, nên đầu trang thành ba tầng cao hơn
+   cả bố cục điện thoại. */
+@media (max-width: 640px) {
   .dau-trang { flex-wrap: wrap; gap: 10px 12px; padding-left: 14px; padding-right: 14px; }
   .hieu { flex: 1 1 100%; }
   .dau-trang-phai { gap: 8px; }
@@ -544,6 +586,19 @@ dialog::backdrop { background: rgba(14, 11, 8, .42); }
   .the-ten { max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .the-so { font-size: 12px; }
   .so-lieu > div { border-right: 0; }
+}
+
+/* Khung hẹp nhất còn dùng thật, cỡ một chiếc điện thoại nhỏ đời cũ. Bốn mục
+   điều hướng phải vừa để không phải vuốt ngang, và khu tài khoản của giảng viên
+   - vốn có thêm nút chấm bài - được phép xuống hàng thay vì đẩy cả trang rộng ra. */
+@media (max-width: 360px) {
+  /* Chọn đủ mạnh để thắng quy tắc body.da-dang-nhap ở ba khối phía trên, vốn có
+     cùng độ đặc hiệu nhưng đứng trước. */
+  body .dau-trang .dieu-huong { gap: 9px; font-size: 13px; }
+  .dau-trang-phai { flex-wrap: wrap; row-gap: 6px; }
+  .the-ten { max-width: 9ch; }
+  .dau-trang-phai .nut { padding: 7px 10px; font-size: 13.5px; }
+  .nut-thoat { padding: 7px 8px; font-size: 13.5px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

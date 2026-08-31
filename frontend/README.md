@@ -257,12 +257,25 @@ vỡ ba dòng. Vì vậy mọi chữ ở đầu trang đều đặt `white-space
 còn bóp được nữa, flexbox buộc phải cho cả thanh điều hướng xuống hàng riêng,
 đúng thứ ta muốn.
 
-Ngưỡng xuống hàng phụ thuộc việc đã đăng nhập hay chưa, vì khu tài khoản lúc đã
-đăng nhập rộng gấp ba lần nút đăng nhập. Phần tài khoản gắn lớp `da-dang-nhap`
-lên thẻ `body` mỗi lần phiên thay đổi, và tệp kiểu dùng lớp đó để chọn ngưỡng:
-1140 điểm ảnh khi đã đăng nhập, 940 khi chưa. Dưới 768 điểm ảnh thì hai logo phụ
-và dòng số liệu trong thẻ người dùng cùng nhường chỗ, để cụm chữ và thẻ vẫn nằm
-chung một hàng.
+Ngưỡng xuống hàng phụ thuộc vai của người đang xem, vì khu tài khoản rộng dần
+theo vai: khách chỉ có nút đăng nhập, sinh viên có thêm thẻ tên và số liệu, giảng
+viên có thêm nút chấm bài. Phần tài khoản gắn hai lớp `da-dang-nhap` và
+`la-giang-vien` lên thẻ `body` mỗi lần phiên thay đổi, và tệp kiểu dùng chúng để
+chọn ngưỡng: 1320 điểm ảnh với giảng viên, 1220 với sinh viên, 1060 với khách.
+Thiếu bậc giảng viên thì dải 1221–1320 vỡ, mà đó lại đúng chỗ một màn 1366 phóng
+110% hay một màn 1920 phóng 150% rơi vào.
+
+Chật hơn nữa thì từng thứ lần lượt nhường chỗ, theo thứ tự từ ít tiếc nhất tới
+tiếc nhất. Dưới 900 điểm ảnh, dòng số liệu trong thẻ người dùng biến mất và tên
+Trung tâm bớt một cỡ chữ. Dưới 860, hai dòng phụ được giấu khỏi mắt nhưng vẫn
+nằm trong cây trợ năng, nên trình đọc màn hình còn đọc đủ tên ba đơn vị. Dưới
+810, hai logo phụ ẩn đi, cụm chữ bị chặn bề ngang nên tên Trung tâm xuống hai
+dòng, và tên người dùng bị cắt bớt — ba mốc này đặt chung một chỗ, vì tách ra thì
+dải ở giữa hai mốc lại phình lên cao hơn cả hai bên. Chặn bề ngang chứ không chỉ
+cho phép xuống dòng, vì flexbox quyết định đẩy một khối xuống hàng dựa trên bề
+ngang tự nhiên của khối đó. Dưới 640, cụm nhận diện chiếm trọn một hàng và khu
+tài khoản xuống dưới. Dưới 360, khu tài khoản được phép xuống hàng bên trong,
+đủ để khung điện thoại nhỏ nhất không sinh thanh cuộn ngang.
 
 ### Bảng trượt khoá phần trang phía sau
 
@@ -327,11 +340,15 @@ nền tương ứng.
 Chữ dùng Times New Roman cho mọi cấp tiêu đề, phân biệt bằng độ đậm, chữ nghiêng,
 cỡ chữ và màu.
 
-Đầu trang đặt tên khoa làm dòng chính, tên Học viện và tên Trung tâm Đào tạo
-chuyên sâu AI làm hai dòng phụ, cạnh ba logo. Tên khoa được viết hoa bằng
+Đầu trang xếp ba đơn vị theo đúng thứ bậc, đọc từ đơn vị làm ra nền tảng này
+tới cơ quan chủ quản xa nhất: Trung tâm Đào tạo chuyên sâu AI là dòng chính, rồi
+Khoa Trí tuệ nhân tạo, rồi Học viện Công nghệ Bưu chính Viễn thông. Ba logo bên
+trái cũng nhỏ dần theo đúng nhịp đó, 38 rồi 30 rồi 26 điểm ảnh, nên người xem
+nhận ra thứ bậc mà không cần đọc kỹ. Tên Trung tâm được viết hoa bằng
 `text-transform` của CSS chứ không viết hoa sẵn trong HTML, để phần chữ trong mã
-nguồn vẫn đúng chính tả tiếng Việt và trình đọc màn hình vẫn đọc đúng. Tên hệ
-thống chuyển xuống làm nhãn của phần mở đầu.
+nguồn giữ đúng chính tả tiếng Việt. Cách này không đổi được điều gì cho trình đọc
+màn hình, vì Chrome đưa thẳng dạng đã viết hoa vào cây trợ năng. Tên hệ thống
+chuyển xuống làm nhãn của phần mở đầu.
 
 Hiệu ứng gồm: vạch tiến độ cuộn ở đầu trang, đường lộ trình tự nét dần khi tải,
 sáu điểm nút nhấp nháy lệch pha, nội dung hiện dần theo cuộn, bốn số liệu đếm
@@ -383,7 +400,7 @@ Bảy tệp ảnh nằm trong `anh/`, tổng cộng khoảng 640 kB.
 |---|---|---|
 | `logo-khoa-ai.png` | 415 × 418 | đầu trang, và làm biểu tượng trên thanh thẻ của trình duyệt |
 | `logo-hoc-vien.png` | 50 × 60 | đầu trang, cạnh logo Khoa Trí tuệ nhân tạo |
-| `logo-trung-tam-ai.png` | 294 × 230 | đầu trang, cạnh logo Học viện |
+| `logo-trung-tam-ai.png` | 294 × 230 | đầu trang, đứng đầu cụm ba logo |
 | `pham-van-cuong.jpg` | 969 × 1024 | mục nhân sự |
 | `tran-tien-cong.jpg` | 990 × 990 | mục nhân sự |
 | `do-thanh-ha.jpg` | 717 × 599 | mục nhân sự |
@@ -398,12 +415,13 @@ Bốn ảnh chân dung có tỷ lệ khác nhau, từ 717 × 599 tới 969 × 10
 chung một tỷ lệ 3:4 và cắt bớt phần thừa bằng `object-fit: cover`, với điểm neo
 đặt hơi cao hơn giữa khung vì khuôn mặt trong cả bốn ảnh đều nằm ở nửa trên.
 
-Logo Học viện chỉ có bản 50 × 60 điểm ảnh nên để nguyên cỡ nhỏ, phóng to là vỡ
-nét. Logo Trung tâm hiển thị ở cùng chiều cao ba mươi điểm ảnh, còn logo Khoa
-đứng trước ở cỡ lớn hơn vì đây là trang của Khoa. Hai logo phụ không bằng bề
-ngang nhau: logo Học viện đứng nên rộng 25 điểm ảnh, logo Trung tâm nằm ngang
-nên rộng 38. Dưới 768 điểm ảnh, hai logo phụ được ẩn đi để nhường chỗ cho khu
-tài khoản; tên ba đơn vị khi đó vẫn đọc được ở chân trang.
+Ba logo hiển thị ở ba chiều cao khác nhau, 38 rồi 30 rồi 26 điểm ảnh, đúng theo
+thứ bậc của ba đơn vị. Logo Học viện chỉ có bản 50 × 60 điểm ảnh nên đứng cuối ở
+cỡ nhỏ nhất cũng là vừa, phóng to là vỡ nét. Chiều cao bằng nhau không có nghĩa
+là bề ngang bằng nhau: logo Trung tâm nằm ngang nên ở 38 điểm ảnh chiều cao thì
+rộng 49, còn logo Học viện đứng nên chỉ rộng 22. Dưới 810 điểm ảnh, hai logo phụ
+được ẩn đi để nhường chỗ cho khu tài khoản; tên ba đơn vị khi đó vẫn đọc được ở
+chân trang.
 
 Bản gốc của logo Trung tâm là ảnh JPEG vuông 1080 × 1080, logo nằm giữa một nền
 trắng có lớp chuyển màu xanh rất nhạt ở các góc. Tệp trong kho được dựng lại qua
