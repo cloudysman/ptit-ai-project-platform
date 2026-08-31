@@ -72,6 +72,11 @@ export function veKhuTaiKhoan() {
   const khu = $('#khu-tai-khoan');
   veKhuKeuGoi();
 
+  // Đăng nhập rồi thì khu tài khoản rộng thêm khoảng một phần tư đầu trang, nên
+  // thanh điều hướng phải xuống hàng riêng sớm hơn. Tệp kiểu đọc trạng thái này
+  // qua lớp trên thẻ body, xem hai khối @media của phần đầu trang.
+  document.body.classList.toggle('da-dang-nhap', phien.daDangNhap);
+
   if (!phien.daDangNhap) {
     khu.innerHTML = '<button type="button" class="nut nut-vien" data-mo-dang-nhap>Đăng nhập</button>';
     return;

@@ -39,7 +39,7 @@ Khi đó giao diện nằm ở `http://127.0.0.1:5500` còn backend vẫn ở c�
 frontend/
 ├─ index.html          trang chủ: khung trang và toàn bộ chữ tĩnh
 ├─ kho.html            trang kho project: bộ lọc đầy đủ và phân trang
-├─ anh/                hai logo và bốn ảnh chân dung
+├─ anh/                ba logo và bốn ảnh chân dung
 ├─ css/style.css       toàn bộ kiểu trình bày, biến màu đặt trong :root
 └─ js/
    ├─ api.js           gọi backend, giữ token, dựng chuỗi truy vấn, đọc câu báo lỗi
@@ -248,6 +248,22 @@ Nút mở bảng chấm bài chỉ hiện với tài khoản giảng viên. Ph�
 backend: `GET /submissions` và `PATCH /submissions/{submission_id}/review` trả về lỗi 403
 cho mọi tài khoản không có quyền giảng viên, bất kể giao diện hiển thị gì.
 
+### Đầu trang xuống hàng thay vì bóp chữ
+
+Đầu trang xếp ba khối trên một hàng: cụm ba logo kèm tên đơn vị, thanh điều
+hướng, và khu tài khoản. Chỗ hẹp thì flexbox bóp khối nào bóp được, mà chữ thì
+luôn bóp được, nên kết quả là "Kho project" gãy thành hai dòng và tên người dùng
+vỡ ba dòng. Vì vậy mọi chữ ở đầu trang đều đặt `white-space: nowrap`: khi không
+còn bóp được nữa, flexbox buộc phải cho cả thanh điều hướng xuống hàng riêng,
+đúng thứ ta muốn.
+
+Ngưỡng xuống hàng phụ thuộc việc đã đăng nhập hay chưa, vì khu tài khoản lúc đã
+đăng nhập rộng gấp ba lần nút đăng nhập. Phần tài khoản gắn lớp `da-dang-nhap`
+lên thẻ `body` mỗi lần phiên thay đổi, và tệp kiểu dùng lớp đó để chọn ngưỡng:
+1140 điểm ảnh khi đã đăng nhập, 940 khi chưa. Dưới 768 điểm ảnh thì hai logo phụ
+và dòng số liệu trong thẻ người dùng cùng nhường chỗ, để cụm chữ và thẻ vẫn nằm
+chung một hàng.
+
 ### Bảng trượt khoá phần trang phía sau
 
 Bảng trượt che gần hết màn hình nhưng vẫn nằm chung một trang với phần nội dung
@@ -311,10 +327,11 @@ nền tương ứng.
 Chữ dùng Times New Roman cho mọi cấp tiêu đề, phân biệt bằng độ đậm, chữ nghiêng,
 cỡ chữ và màu.
 
-Đầu trang đặt tên khoa làm dòng chính và tên Học viện làm dòng phụ, cạnh hai
-logo. Tên khoa được viết hoa bằng `text-transform` của CSS chứ không viết hoa
-sẵn trong HTML, để phần chữ trong mã nguồn vẫn đúng chính tả tiếng Việt và trình
-đọc màn hình vẫn đọc đúng. Tên hệ thống chuyển xuống làm nhãn của phần mở đầu.
+Đầu trang đặt tên khoa làm dòng chính, tên Học viện và tên Trung tâm Đào tạo
+chuyên sâu AI làm hai dòng phụ, cạnh ba logo. Tên khoa được viết hoa bằng
+`text-transform` của CSS chứ không viết hoa sẵn trong HTML, để phần chữ trong mã
+nguồn vẫn đúng chính tả tiếng Việt và trình đọc màn hình vẫn đọc đúng. Tên hệ
+thống chuyển xuống làm nhãn của phần mở đầu.
 
 Hiệu ứng gồm: vạch tiến độ cuộn ở đầu trang, đường lộ trình tự nét dần khi tải,
 sáu điểm nút nhấp nháy lệch pha, nội dung hiện dần theo cuộn, bốn số liệu đếm
@@ -332,7 +349,7 @@ tiến độ lưu trong `localStorage`, và có nút chuyển ngữ Việt – A
 | Nguồn dữ liệu | `js/data.js` | backend |
 | Tên sáu level | viết sẵn trong trang | vẫn sáu tên đó, nhưng lấy từ backend |
 | Cách nhóm chuyên môn | tám lĩnh vực | mười một track của backend |
-| Ảnh | bốn ô giữ chỗ, chưa có logo | hai logo và bốn ảnh chân dung, lưu trong `anh/` |
+| Ảnh | bốn ô giữ chỗ, chưa có logo | ba logo và bốn ảnh chân dung, lưu trong `anh/` |
 | Số trang | một trang | trang chủ và trang kho project |
 | Người phụ trách | ghi thẳng trong dữ liệu mẫu | lấy từ backend, mỗi track một giảng viên |
 | Tiến độ | đánh dấu tay, lưu trong `localStorage` | nộp bài, được chấm, cộng điểm tích luỹ, lưu trên máy chủ |
@@ -342,9 +359,9 @@ tiến độ lưu trong `localStorage`, và có nút chuyển ngữ Việt – A
 Ba thay đổi đáng chú ý:
 
 Số liệu được sửa cho đúng. Con số 182 project và số project của từng level trong
-bản đầu tiên là dự kiến, không phải số thật. Kho hiện có 36 project, chia thành
-6, 8, 7, 6, 5 và 4 project cho sáu level. Giao diện lấy các con số này từ
-`GET /stats` nên chúng luôn khớp với cơ sở dữ liệu. Sáu tên level thì giữ nguyên
+bản đầu tiên là dự kiến, không phải số thật. Giao diện lấy mọi con số từ
+`GET /stats` nên chúng luôn khớp với cơ sở dữ liệu, kể cả sau này kho có thêm
+hay bớt project. Sáu tên level thì giữ nguyên
 như bản đầu tiên: Nhập môn, Cơ sở, Vận dụng, Nâng cao, Thực chiến, Nghiên cứu.
 Hai bậc cuối đổi chỗ cho nhau so với bản đầu tiên, vì project ở level 4 là đóng
 gói và triển khai, còn project ở level 5 là nghiên cứu và đánh giá.
@@ -360,12 +377,13 @@ thiệu nhân sự ở cuối trang vẫn giữ, kèm ghi chú về nguồn.
 
 ## 8. Ảnh
 
-Sáu tệp ảnh nằm trong `anh/`, tổng cộng khoảng 620 kB.
+Bảy tệp ảnh nằm trong `anh/`, tổng cộng khoảng 640 kB.
 
 | Tệp | Kích thước gốc | Dùng ở đâu |
 |---|---|---|
 | `logo-khoa-ai.png` | 415 × 418 | đầu trang, và làm biểu tượng trên thanh thẻ của trình duyệt |
 | `logo-hoc-vien.png` | 50 × 60 | đầu trang, cạnh logo Khoa Trí tuệ nhân tạo |
+| `logo-trung-tam-ai.png` | 294 × 230 | đầu trang, cạnh logo Học viện |
 | `pham-van-cuong.jpg` | 969 × 1024 | mục nhân sự |
 | `tran-tien-cong.jpg` | 990 × 990 | mục nhân sự |
 | `do-thanh-ha.jpg` | 717 × 599 | mục nhân sự |
@@ -381,13 +399,31 @@ chung một tỷ lệ 3:4 và cắt bớt phần thừa bằng `object-fit: cove
 đặt hơi cao hơn giữa khung vì khuôn mặt trong cả bốn ảnh đều nằm ở nửa trên.
 
 Logo Học viện chỉ có bản 50 × 60 điểm ảnh nên để nguyên cỡ nhỏ, phóng to là vỡ
-nét. Trên màn hình hẹp, logo này được ẩn đi cho đầu trang đỡ chật, chỉ giữ lại
-logo Khoa Trí tuệ nhân tạo.
+nét. Logo Trung tâm hiển thị ở cùng chiều cao ba mươi điểm ảnh, còn logo Khoa
+đứng trước ở cỡ lớn hơn vì đây là trang của Khoa. Hai logo phụ không bằng bề
+ngang nhau: logo Học viện đứng nên rộng 25 điểm ảnh, logo Trung tâm nằm ngang
+nên rộng 38. Dưới 768 điểm ảnh, hai logo phụ được ẩn đi để nhường chỗ cho khu
+tài khoản; tên ba đơn vị khi đó vẫn đọc được ở chân trang.
+
+Bản gốc của logo Trung tâm là ảnh JPEG vuông 1080 × 1080, logo nằm giữa một nền
+trắng có lớp chuyển màu xanh rất nhạt ở các góc. Tệp trong kho được dựng lại qua
+ba bước. Trước hết cắt sát nét, lấy đúng vùng x 274–815 và y 324–745 rồi chừa
+năm điểm ảnh mỗi bên, nhờ vậy ba logo ở đầu trang cách nhau đều nhau thay vì
+logo cuối trông thưa hơn. Sau đó thu về 294 × 230, cỡ vẫn dư gấp hai lần rưỡi
+cho màn hình dày điểm ảnh gấp ba mà nhẹ hơn bản đầy đủ một nửa; phép thu nhỏ làm
+khi ảnh còn nền trắng, chứ không làm sau khi đã có kênh trong suốt, để không để
+lại viền tối quanh nét. Cuối cùng mới tách nền: điểm ảnh càng khác trắng thì
+càng nhiều mực, từ một mức nhất định trở lên coi như phủ kín và giữ nguyên màu
+gốc, dưới mức đó là viền chống răng cưa nên độ phủ giảm dần và phần trắng đã
+trộn vào được chia ngược ra. Nhờ cách này logo đặt lên nền nào cũng đúng màu,
+không riêng nền giấy ngà của trang.
 
 ## 9. Nguồn nội dung
 
-Tên, chức vụ và ảnh chân dung của giảng viên, cùng hai logo, lấy từ trang của
-Khoa Trí tuệ nhân tạo, `https://ai.ptit.edu.vn`.
+Tên, chức vụ và ảnh chân dung của giảng viên, cùng logo Khoa và logo Học viện,
+lấy từ trang của Khoa Trí tuệ nhân tạo, `https://ai.ptit.edu.vn`. Logo Trung tâm
+Đào tạo chuyên sâu AI lấy từ ảnh do Trung tâm công bố, đã cắt và tách nền như
+mục 8 mô tả.
 
 Địa chỉ trụ sở và cơ sở đào tạo lấy từ trang thông tin của Học viện.
 
