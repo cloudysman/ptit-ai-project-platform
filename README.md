@@ -14,7 +14,7 @@ lo phần lọc và tìm kiếm trong toàn bộ 200 project.
 
 | Thư mục | Nội dung | Tình trạng |
 |---|---|---|
-| [`backend/`](backend/) | API viết bằng FastAPI và SQLAlchemy, dùng SQLite | 24 endpoint, 87 bài kiểm thử đều đạt |
+| [`backend/`](backend/) | API viết bằng FastAPI và SQLAlchemy, dùng SQLite | 24 endpoint, 370 bài kiểm thử đều đạt |
 | [`frontend/`](frontend/) | giao diện web hai trang, không dùng thư viện ngoài | dùng 20 trong 24 endpoint, không còn dữ liệu viết sẵn |
 
 Backend phục vụ luôn thư mục `frontend`, nên chỉ cần chạy một lệnh là có cả giao
