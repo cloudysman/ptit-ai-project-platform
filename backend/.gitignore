@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .env
+# Ban sao cua .env do cac tap lenh trien khai sinh ra, cung chua khoa ky.
+.env.bak
+.env.sao-luu.*
 data/*.db
 data/*.db-wal
 data/*.db-shm

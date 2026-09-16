@@ -43,7 +43,7 @@ try {
             }
         }
         'test' { & $Python -m pytest }
-        'lint' { & $Python -m ruff check . }
+        'lint' { & $Python -m ruff check .; & $Python -m ruff format --check . }
         'format' { & $Python -m ruff format . }
     }
 }

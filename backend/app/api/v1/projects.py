@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
+import unicodedata
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import Field
 
-from app.api.deps import DbSession, Paging
+from app.api.deps import DbSession, OptionalUser, Paging
 from app.models.enums import ProjectSort
 from app.schemas.catalog import HintRead, ProjectDetail, ProjectSummary
 from app.schemas.common import Page
 from app.services import catalog as catalog_service
+from app.services import progress as progress_service
 from app.services.catalog import DEFAULT_SORT, ProjectFilter
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -25,10 +27,30 @@ SlugValue = Annotated[str, Field(min_length=1, max_length=128)]
 
 MAX_HINT_TIER = 3
 
-# Trần của số giờ trong bộ lọc. Project dài nhất trong kho là 60 giờ, nên 1000
+# Trần của số giờ trong bộ lọc. Project dài nhất trong kho là 80 giờ, nên 1000
 # giờ đã quá rộng. Trần này còn chặn được những con số vượt ngoài dải số nguyên
 # mà SQLite xử lý được, vốn làm truy vấn hỏng và trả về lỗi 500.
 MAX_FILTER_HOURS = 1000
+
+
+def _chuan_hoa_tu_khoa(q: str | None) -> str | None:
+    """Đưa từ khoá về dạng so sánh được, và chặn từ khoá không có nội dung.
+
+    Pydantic chỉ đo độ dài thô, nên chuỗi toàn khoảng trắng lọt qua kiểm tra
+    "ít nhất 1 ký tự" rồi khớp với cả kho, trong khi chuỗi rỗng bị 422. Ký tự NUL
+    thì làm SQLite cắt mẫu LIKE ngay tại đó, nên "nhan<NUL>zzzz" khớp như
+    "nhan". Dạng NFC để chữ có dấu gõ kiểu tổ hợp cũng tìm được như gõ kiểu
+    dựng sẵn.
+    """
+    if q is None:
+        return None
+    q = unicodedata.normalize("NFC", q).replace("\x00", "").strip()
+    if not q:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Phần từ khoá tìm kiếm phải có ít nhất 1 ký tự.",
+        )
+    return q
 
 
 def _kiem_tra_khoang_gio(min_hours: int | None, max_hours: int | None) -> None:
@@ -74,7 +96,7 @@ def list_projects(
         skills=skill or [],
         min_hours=min_hours,
         max_hours=max_hours,
-        query=q,
+        query=_chuan_hoa_tu_khoa(q),
         sort=sort,
     )
     items, total = catalog_service.list_projects(db, filters, paging)
@@ -86,15 +108,24 @@ def list_projects(
 @router.get("/random", response_model=ProjectSummary)
 def get_random_project(
     db: DbSession,
+    user: OptionalUser,
     level: Annotated[list[LevelValue] | None, Query(description="Lọc theo level.")] = None,
     track: Annotated[list[SlugValue] | None, Query(description="Lọc theo slug của track.")] = None,
     max_hours: Annotated[
         int | None, Query(ge=1, le=MAX_FILTER_HOURS, description="Thời gian tối đa.")
     ] = None,
 ) -> ProjectSummary:
-    """Chọn ngẫu nhiên một project, dùng cho nút chọn giúp một project trên trang chủ."""
+    """Chọn ngẫu nhiên một project, dùng cho nút chọn giúp một project trên trang chủ.
+
+    Gọi kèm token thì project được chọn phải vừa sức người đó: chưa hoàn thành,
+    đã mở khoá và không cao hơn một level so với level cao nhất đã hoàn thành,
+    trừ khi tham số level được chỉ rõ. Gọi ẩn danh thì chỉ theo bộ lọc gửi lên.
+    """
     filters = ProjectFilter(levels=level or [], tracks=track or [], max_hours=max_hours)
-    project = catalog_service.get_random_project(db, filters)
+    if user is not None:
+        project = progress_service.random_suitable_project(db, user, filters)
+    else:
+        project = catalog_service.get_random_project(db, filters)
     if project is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -121,10 +152,11 @@ def list_hints(
         Query(ge=1, le=MAX_HINT_TIER, description="Tầng gợi ý cao nhất muốn xem."),
     ] = 1,
 ) -> list[HintRead]:
-    """Trả về gợi ý của project, tối đa tới tầng người dùng yêu cầu.
+    """Trả về gợi ý của project, tối đa tới tầng người gọi yêu cầu.
 
-    Việc cắt theo tầng được làm ở phía backend để người dùng không thể xem hết
-    gợi ý chỉ bằng cách sửa giao diện.
+    Gợi ý là công khai và tầng cao nhất do người gọi chọn, không cần đăng nhập.
+    Việc mở dần từng tầng là cách giao diện dẫn người học, không phải một chốt
+    chặn của backend: ai muốn xem cả ba tầng vẫn xem được.
     """
     project = catalog_service.get_published_project(db, slug)
     if project is None:

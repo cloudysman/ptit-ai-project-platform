@@ -12,9 +12,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Thư mục gốc của backend, dùng để quy chiếu mọi đường dẫn tương đối.
 BASE_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = BASE_DIR / "data"
-# Ảnh đại diện do người dùng tải lên. Để trong data vì đây là dữ liệu chạy thật,
-# không phải mã nguồn, và thư mục data đã được bỏ qua khi đưa lên kho mã nguồn.
-AVATAR_DIR = DATA_DIR / "anh-dai-dien"
 
 _SQLITE_PREFIX = "sqlite:///"
 
@@ -63,6 +60,19 @@ class Settings(BaseSettings):
     # backend chỉ phục vụ API và địa chỉ gốc chuyển hướng sang trang tài liệu.
     frontend_dir: str = "../frontend"
 
+    # Tiền tố đường dẫn của nền tảng khi nó nằm sau một máy chủ trung gian, ví dụ
+    # /projects cho địa chỉ https://ptitai.org/projects/. Để trống khi nền tảng
+    # chạy ngay tại gốc tên miền.
+    #
+    # Đặt giá trị này thì máy chủ trung gian phải chuyển nguyên đường dẫn kèm
+    # tiền tố xuống, vì chính backend là nơi cắt tiền tố ra. Cấu hình nginx do
+    # ten-mien.sh sinh ra đã làm đúng như vậy.
+    #
+    # Hệ quả cần biết: khi đã đặt giá trị này thì gọi thẳng vào cổng nội bộ mà
+    # không kèm tiền tố sẽ không lấy được thư mục tài nguyên tĩnh. Lúc phát triển
+    # thì để trống, lúc chạy sau máy chủ trung gian mới đặt.
+    root_path: str = ""
+
     default_page_size: int = 20
     max_page_size: int = 100
 
@@ -71,6 +81,14 @@ class Settings(BaseSettings):
 
     # Dung lượng tối đa của một ảnh đại diện, tính bằng byte.
     max_avatar_bytes: int = 2 * 1024 * 1024
+
+    # Thư mục chứa ảnh đại diện do người dùng tải lên, tính từ thư mục backend.
+    # Để trong data vì đây là dữ liệu chạy thật, không phải mã nguồn, và thư mục
+    # data đã được bỏ qua khi đưa lên kho mã nguồn. Là một tham số cấu hình chứ
+    # không phải hằng số, để bộ kiểm thử và các máy chủ xem thử trỏ được sang
+    # thư mục riêng: cùng chạy trên một thư mục với bản thật thì kiểm thử xoá
+    # mất ảnh của người dùng thật, vì tệp ảnh chỉ được nhận ra theo mã người dùng.
+    avatar_dir: str = "data/anh-dai-dien"
 
     @model_validator(mode="after")
     def check_secret_key(self) -> Settings:
@@ -122,6 +140,12 @@ class Settings(BaseSettings):
         return f"{_SQLITE_PREFIX}{path.as_posix()}"
 
     @property
+    def resolved_avatar_dir(self) -> Path:
+        """Thư mục ảnh đại diện dưới dạng đường dẫn tuyệt đối, quy chiếu theo BASE_DIR."""
+        path = Path(self.avatar_dir)
+        return path if path.is_absolute() else BASE_DIR / path
+
+    @property
     def frontend_path(self) -> Path | None:
         """Thư mục frontend nếu thư mục đó có thật và có file index.html.
 
@@ -136,6 +160,17 @@ class Settings(BaseSettings):
             path = BASE_DIR / path
         path = path.resolve()
         return path if (path / "index.html").is_file() else None
+
+    @property
+    def normalized_root_path(self) -> str:
+        """Tiền tố đường dẫn đã chuẩn hoá: có dấu gạch chéo đầu, không có ở cuối.
+
+        Người cấu hình dễ viết thành "projects", "/projects" hay "/projects/".
+        Cả ba phải cho ra cùng một kết quả, vì chỉ một dạng duy nhất là dạng mà
+        FastAPI hiểu.
+        """
+        goc = self.root_path.strip().strip("/")
+        return f"/{goc}" if goc else ""
 
     @property
     def is_sqlite(self) -> bool:

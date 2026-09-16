@@ -8,17 +8,19 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Response, status
+from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.responses import MalformedRangeHeader, RangeNotSatisfiable
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app import __version__
 from app.api.v1.router import api_router
-from app.core.config import AVATAR_DIR, settings
+from app.core.config import settings
 from app.db.session import init_db
 
 logger = logging.getLogger(__name__)
@@ -49,6 +51,7 @@ _TEN_TRUONG = {
     "level": "level",
     "limit": "số lượng",
     "max_hours": "số giờ tối đa",
+    "max_tier": "tầng gợi ý",
     "min_hours": "số giờ tối thiểu",
     "note": "ghi chú",
     "page": "số trang",
@@ -87,6 +90,85 @@ _THU_MUC_TINH = ("anh", "css", "js")
 # vì gắn cả thư mục gốc, để không có file nào lọt ra ngoài ngoài ý muốn.
 _TRANG_HTML = {"/": "index.html", "/kho.html": "kho.html"}
 
+# Trang báo lỗi cho người gõ nhầm địa chỉ trên trình duyệt, ví dụ /kho thay vì
+# /kho.html. Hai đường dẫn viết theo dạng tương đối, cùng lý do với các chuyển
+# hướng ở cuối file: chúng phải đúng cả khi nền tảng nằm sau tiền tố /projects.
+_TRANG_KHONG_TIM_THAY = (
+    "<!doctype html><html lang=vi><meta charset=utf-8>"
+    '<meta name=viewport content="width=device-width, initial-scale=1">'
+    "<title>Không tìm thấy</title>"
+    '<p style="font: 16px/1.6 system-ui, sans-serif; margin: 2rem">'
+    "Không tìm thấy địa chỉ này. "
+    '<a href="./">Trang chủ</a> · <a href="./kho.html">Kho project</a>'
+)
+
+
+# Tiêu đề bảo mật gắn vào mọi phản hồi. Trang có hộp đăng nhập nên không được
+# cho trang khác nhúng vào khung (chống clickjacking); nosniff để trình duyệt
+# không đoán lại loại tệp; Referrer-Policy để địa chỉ có tham số tìm kiếm không
+# lọt sang trang khác. Chính sách nội dung (Content-Security-Policy) cố ý không
+# đặt ở đây mà ở nginx, xem ten-mien.sh: trang tài liệu /docs cần một chính sách
+# khác vì nạp Swagger UI từ CDN, và các bộ kiểm thử trình duyệt chạy thẳng vào
+# cổng nội bộ phải đánh giá mã ngay trong trang, thứ mà script-src chặn.
+_TIEU_DE_BAO_MAT = (
+    (b"x-content-type-options", b"nosniff"),
+    (b"x-frame-options", b"SAMEORIGIN"),
+    (b"referrer-policy", b"strict-origin-when-cross-origin"),
+)
+
+
+def _duong_dan_khong_tien_to(scope: Scope) -> str:
+    """Đường dẫn của request sau khi cắt tiền tố mà máy chủ trung gian gắn vào, nếu có."""
+    return scope["path"].removeprefix(scope.get("root_path", "")) or "/"
+
+
+class TieuDeBaoMat:
+    """Gắn bộ tiêu đề bảo mật vào mọi phản hồi HTTP."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def gui_kem_tieu_de(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                message = {**message, "headers": [*message.get("headers", []), *_TIEU_DE_BAO_MAT]}
+            await send(message)
+
+        await self.app(scope, receive, gui_kem_tieu_de)
+
+
+class HeadNhuGet:
+    """Trả lời HEAD bằng đúng phần tiêu đề của phản hồi GET tương ứng.
+
+    FastAPI không tự thêm HEAD cho route GET, nên công cụ giám sát dùng HEAD
+    thấy mã 405 và báo nền tảng sập. Lớp này đổi phương thức thành GET trước
+    khi vào ứng dụng rồi bỏ phần thân khi gửi ra, nên mọi địa chỉ GET, từ hai
+    trang HTML tới từng endpoint API, đều nhận HEAD mà không phải khai báo thêm.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope["method"] != "HEAD":
+            await self.app(scope, receive, send)
+            return
+
+        async def gui_khong_than(message: Message) -> None:
+            if message["type"] == "http.response.body":
+                message = {
+                    "type": "http.response.body",
+                    "body": b"",
+                    "more_body": message.get("more_body", False),
+                }
+            await send(message)
+
+        await self.app({**scope, "method": "GET"}, receive, gui_khong_than)
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -104,6 +186,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url=None,
     openapi_url="/openapi.json",
+    # Tiền tố mà máy chủ trung gian gắn trước mọi địa chỉ. Trang tài liệu API
+    # dùng nó để trỏ đúng tới file mô tả API; để trống thì mọi thứ giữ nguyên.
+    root_path=settings.normalized_root_path,
 )
 
 # Nén phản hồi lớn. Trang danh sách project trả về nhiều văn bản nên phần tiết
@@ -117,6 +202,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(TieuDeBaoMat)
+# Đặt ngoài cùng, để phần nén và CORS vẫn thấy một request GET bình thường.
+app.add_middleware(HeadNhuGet)
 
 app.include_router(api_router, prefix=settings.api_prefix)
 
@@ -208,13 +297,42 @@ async def handle_validation_error(_request: Request, exc: RequestValidationError
 
 
 @app.exception_handler(StarletteHTTPException)
-async def handle_http_error(_request: Request, exc: StarletteHTTPException) -> JSONResponse:
-    """Đưa mọi lỗi HTTP về cùng một cấu trúc, với câu thông báo bằng tiếng Việt."""
+async def handle_http_error(request: Request, exc: StarletteHTTPException) -> Response:
+    """Đưa mọi lỗi HTTP về cùng một cấu trúc, với câu thông báo bằng tiếng Việt.
+
+    Riêng địa chỉ ngoài API mà trình duyệt không tìm thấy thì trả về một trang
+    HTML nhỏ: người gõ nhầm /kho cần một đường về trang chủ, không cần JSON thô.
+    """
     detail = exc.detail
     if isinstance(detail, str):
         detail = _THONG_BAO_MAC_DINH.get(detail, detail)
+
+    la_trinh_duyet = "text/html" in request.headers.get("accept", "")
+    duong_dan = _duong_dan_khong_tien_to(request.scope)
+    if (
+        exc.status_code == status.HTTP_404_NOT_FOUND
+        and la_trinh_duyet
+        and not duong_dan.startswith(settings.api_prefix)
+    ):
+        return HTMLResponse(_TRANG_KHONG_TIM_THAY, status_code=exc.status_code, headers=exc.headers)
+
     return JSONResponse(
         status_code=exc.status_code, content={"detail": detail}, headers=exc.headers
+    )
+
+
+@app.exception_handler(Exception)
+async def handle_unexpected_error(_request: Request, exc: Exception) -> JSONResponse:
+    """Lỗi bất ngờ cũng phải ra cùng cấu trúc và cùng tiếng Việt như mọi lỗi khác.
+
+    Không có handler này thì Starlette trả về dòng chữ "Internal Server Error"
+    dạng văn bản thường, và giao diện hiện nguyên dòng tiếng Anh đó cho người dùng.
+    Chi tiết lỗi vẫn được ghi vào nhật ký để người vận hành xem.
+    """
+    logger.exception("Lỗi chưa xử lý: %s", exc)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Máy chủ gặp lỗi, thử lại sau."},
     )
 
 
@@ -234,17 +352,44 @@ class TepTinhLuonHoiLai(StaticFiles):
     chưa đổi, nhưng bỏ hẳn khả năng dùng nhầm bản cũ.
     """
 
-    def file_response(self, *args, **kwargs) -> Response:
-        phan_hoi = super().file_response(*args, **kwargs)
+    def file_response(self, full_path, stat_result, scope, status_code: int = 200) -> Response:
+        # Tiêu đề Range hỏng được Starlette báo bằng một dòng tiếng Anh dạng văn
+        # bản thường, và chỉ báo lúc gửi phản hồi, tức sau khi handler lỗi đã
+        # hết cơ hội can thiệp. Xét trước ở đây để lỗi đi qua handle_http_error
+        # như mọi lỗi khác, thành JSON kèm câu tiếng Việt.
+        khoang = dict(scope.get("headers", ())).get(b"range")
+        if khoang:
+            try:
+                FileResponse._parse_range_header(khoang.decode("latin-1"), stat_result.st_size)
+            except MalformedRangeHeader:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Khoảng byte yêu cầu không hợp lệ.",
+                ) from None
+            except RangeNotSatisfiable as loi:
+                raise HTTPException(
+                    status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
+                    detail="Khoảng byte yêu cầu nằm ngoài tệp.",
+                    headers={"Content-Range": f"bytes */{loi.max_size}"},
+                ) from None
+
+        phan_hoi = super().file_response(full_path, stat_result, scope, status_code)
         phan_hoi.headers["Cache-Control"] = "no-cache"
         return phan_hoi
 
 
 def _gan_trang(application: FastAPI, duong_dan: str, tep: Path) -> None:
-    """Gắn một trang HTML vào một đường dẫn cố định."""
+    """Gắn một trang HTML vào một đường dẫn cố định.
 
-    async def tra_trang() -> FileResponse:
-        return FileResponse(tep, headers={"Cache-Control": "no-cache"})
+    Trang được trả qua cùng lớp phục vụ tệp tĩnh, để hưởng phần xét
+    If-None-Match và If-Modified-Since của Starlette: trang chưa đổi thì trả về
+    304 thay vì gửi lại toàn bộ HTML mỗi lần mở. FileResponse gọi thẳng thì bỏ
+    qua hai tiêu đề đó.
+    """
+    tep_tinh = TepTinhLuonHoiLai(directory=tep.parent)
+
+    async def tra_trang(request: Request) -> Response:
+        return await tep_tinh.get_response(tep.name, request.scope)
 
     application.add_api_route(duong_dan, tra_trang, include_in_schema=False)
 
@@ -268,8 +413,13 @@ def _serve_frontend(application: FastAPI) -> None:
 
         @application.get("/", include_in_schema=False)
         def root() -> RedirectResponse:
-            """Đưa người mở địa chỉ gốc sang thẳng trang tài liệu API."""
-            return RedirectResponse(url="/docs")
+            """Đưa người mở địa chỉ gốc sang thẳng trang tài liệu API.
+
+            Địa chỉ đích viết theo dạng tương đối để nó đúng ở cả hai kiểu triển
+            khai. Viết "/docs" thì bản nằm sau máy chủ trung gian sẽ đẩy người
+            dùng ra gốc tên miền, tức ra ngoài phạm vi của nền tảng.
+            """
+            return RedirectResponse(url="docs")
 
         return
 
@@ -282,20 +432,26 @@ def _serve_frontend(application: FastAPI) -> None:
 
     # Ảnh đại diện do người dùng tải lên nằm ngoài thư mục frontend, vì đó là dữ
     # liệu chạy thật chứ không phải một phần của mã nguồn giao diện.
-    AVATAR_DIR.mkdir(parents=True, exist_ok=True)
+    thu_muc_anh = settings.resolved_avatar_dir
+    thu_muc_anh.mkdir(parents=True, exist_ok=True)
     # Bảng loại tệp của Windows không có sẵn WebP, nên nếu không khai báo thì ảnh
     # đại diện dạng .webp được trả về dưới loại chung application/octet-stream và
     # trình duyệt tải nó xuống thay vì hiển thị.
     mimetypes.add_type("image/webp", ".webp")
-    application.mount("/anh-dai-dien", StaticFiles(directory=AVATAR_DIR), name="anh-dai-dien")
+    application.mount("/anh-dai-dien", StaticFiles(directory=thu_muc_anh), name="anh-dai-dien")
 
     for duong_dan, ten_tep in _TRANG_HTML.items():
         _gan_trang(application, duong_dan, frontend_path / ten_tep)
 
     @application.get("/index.html", include_in_schema=False)
     def ve_trang_goc() -> RedirectResponse:
-        """Đưa người gõ tay /index.html về địa chỉ gốc, để trang chủ chỉ có một địa chỉ."""
-        return RedirectResponse(url="/", status_code=status.HTTP_301_MOVED_PERMANENTLY)
+        """Đưa người gõ tay /index.html về địa chỉ gốc, để trang chủ chỉ có một địa chỉ.
+
+        Cùng lý do với địa chỉ gốc ở trên: đích viết theo dạng tương đối, nên
+        "./" từ /index.html ra đúng "/", còn từ /projects/index.html thì ra đúng
+        "/projects/".
+        """
+        return RedirectResponse(url="./", status_code=status.HTTP_301_MOVED_PERMANENTLY)
 
 
 _serve_frontend(app)

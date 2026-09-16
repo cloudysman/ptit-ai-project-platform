@@ -14,7 +14,7 @@ lo phần lọc và tìm kiếm trong toàn bộ 200 project.
 
 | Thư mục | Nội dung | Tình trạng |
 |---|---|---|
-| [`backend/`](backend/) | API viết bằng FastAPI và SQLAlchemy, dùng SQLite | 24 endpoint, 84 bài kiểm thử đều đạt |
+| [`backend/`](backend/) | API viết bằng FastAPI và SQLAlchemy, dùng SQLite | 24 endpoint, 87 bài kiểm thử đều đạt |
 | [`frontend/`](frontend/) | giao diện web hai trang, không dùng thư viện ngoài | dùng 20 trong 24 endpoint, không còn dữ liệu viết sẵn |
 
 Backend phục vụ luôn thư mục `frontend`, nên chỉ cần chạy một lệnh là có cả giao
@@ -25,6 +25,23 @@ của [`frontend/README.md`](frontend/README.md).
 
 ## Chạy nhanh
 
+Cần Python 3.12 trở lên. Chọn phần ứng với hệ điều hành của bạn.
+
+Trên Linux hoặc macOS:
+
+```bash
+cd backend
+./dev.sh setup
+./dev.sh seed "matkhau-quan-tri"
+./dev.sh run
+```
+
+Lệnh `setup` tạo môi trường ảo `.venv`, cài thư viện, rồi tạo file `.env` kèm
+một khoá ký ngẫu nhiên. Bước sinh khoá không bỏ qua được: backend từ chối khởi
+động khi `SECRET_KEY` vẫn là giá trị mặc định trong `.env.example`.
+
+Trên Windows:
+
 ```powershell
 cd backend
 python -m venv .venv
@@ -34,16 +51,23 @@ Copy-Item .env.example .env
 ```
 
 Lệnh cuối in ra một khoá ngẫu nhiên. Mở file `.env` rồi đặt khoá đó vào biến
-`SECRET_KEY`. Bước này không bỏ qua được: backend từ chối khởi động khi khoá vẫn
-là giá trị mặc định, nên hai lệnh dưới đây sẽ dừng ngay nếu chưa đặt khoá.
+`SECRET_KEY`, vì cùng một lý do vừa nói ở trên. Sau đó chạy hai lệnh:
 
 ```powershell
 .\.venv\Scripts\python.exe -m app.seed --admin-password "matkhau-quan-tri"
 .\dev.cmd run
 ```
 
-Lệnh đầu nạp 6 level, 4 giảng viên, 11 track, 37 skill, 12 badge, 200 project,
-3 lộ trình và tạo một tài khoản giảng viên tên `admin` để có người chấm bài.
+Lệnh nạp dữ liệu mẫu đưa vào 6 level, 4 giảng viên, 11 track, 37 skill, 12 badge,
+200 project, 3 lộ trình, và tạo một tài khoản giảng viên tên `admin` để có người
+chấm bài.
+
+Ba lệnh trên gắn máy chủ vào phiên đăng nhập hiện tại, nên nó dừng khi bạn ngắt
+kết nối. Muốn máy chủ chạy nền, tự chạy lại khi tiến trình chết và tự chạy khi
+máy khởi động lại thì dùng `./dich-vu.sh cai` thay cho `./dev.sh run`. Muốn đưa
+nền tảng ra một tên miền thì chạy `./ten-mien.sh bat-tien-to` rồi
+`sudo ./ten-mien.sh cai`. Chi tiết của cả hai nằm ở
+mục 4 của [`backend/README.md`](backend/README.md).
 
 | Địa chỉ | Nội dung |
 |---|---|

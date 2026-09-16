@@ -7,7 +7,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from app.core.config import AVATAR_DIR, settings
+from app.core.config import settings
 from app.models.user import User
 
 # Ba định dạng ảnh mà trình duyệt nào cũng hiển thị được. Phần mở rộng của tệp
@@ -70,7 +70,7 @@ def kiem_tra(noi_dung: bytes, content_type: str | None) -> str:
 
 def duong_dan(ten_tep: str) -> Path:
     """Đường dẫn tuyệt đối tới một tệp ảnh đại diện."""
-    return AVATAR_DIR / ten_tep
+    return settings.resolved_avatar_dir / ten_tep
 
 
 def luu(db: Session, user: User, noi_dung: bytes, content_type: str | None) -> str:
@@ -83,7 +83,7 @@ def luu(db: Session, user: User, noi_dung: bytes, content_type: str | None) -> s
     chiếm đúng một tệp trên đĩa.
     """
     duoi = kiem_tra(noi_dung, content_type)
-    AVATAR_DIR.mkdir(parents=True, exist_ok=True)
+    settings.resolved_avatar_dir.mkdir(parents=True, exist_ok=True)
 
     ten_tep = f"{user.id}-{secrets.token_hex(4)}{duoi}"
     duong_dan(ten_tep).write_bytes(noi_dung)
@@ -97,11 +97,12 @@ def luu(db: Session, user: User, noi_dung: bytes, content_type: str | None) -> s
 
 def xoa_tep_cu(user: User, tru: str = "") -> None:
     """Xoá mọi tệp ảnh của một người dùng, trừ tệp vừa ghi."""
-    if not AVATAR_DIR.is_dir():
+    thu_muc = settings.resolved_avatar_dir
+    if not thu_muc.is_dir():
         return
 
     # Bắt cả tên kiểu cũ, dạng "12.jpg", lẫn tên kiểu mới, dạng "12-a1b2c3d4.jpg".
-    for tep in AVATAR_DIR.iterdir():
+    for tep in thu_muc.iterdir():
         cung_nguoi = tep.stem == str(user.id) or tep.stem.startswith(f"{user.id}-")
         if cung_nguoi and tep.name != tru and tep.is_file():
             tep.unlink()

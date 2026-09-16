@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from contextlib import contextmanager
 
@@ -24,7 +25,21 @@ def _create_engine() -> Engine:
         # ra nó. FastAPI chạy các endpoint đồng bộ trên một nhóm luồng nên phải
         # tắt kiểm tra này.
         kwargs["connect_args"] = {"check_same_thread": False}
-    else:
+
+    # Bể kết nối phải không bao giờ là thứ bị chờ. Mỗi request đồng bộ đi qua
+    # nhóm luồng của FastAPI (40 vé) hai lần: chạy endpoint, rồi kiểm tra phản
+    # hồi; session giữ kết nối suốt cả hai lượt. Bể mặc định (5 cộng 10 dôi) hay
+    # bất kỳ trần cố định nào đều có thể kẹt vòng: 40 luồng đứng chờ kết nối
+    # trong khi mọi kết nối nằm trong tay những request đang chờ một luồng để
+    # kiểm tra phản hồi. Khi đó cả backend đơ 30 giây rồi trả về lỗi 500 hàng
+    # loạt. Phần dôi vì thế không giới hạn: kết nối thứ 41 trở đi mở khi cần và
+    # đóng khi trả về, còn 40 kết nối đầu sống lâu để lúc thường không phải mở
+    # đóng gì. Cơ sở dữ liệu trong bộ nhớ thì sống chết theo kết nối nên vẫn
+    # dùng bể mặc định.
+    if ":memory:" not in url:
+        kwargs["pool_size"] = 40
+        kwargs["max_overflow"] = -1
+    if not settings.is_sqlite:
         kwargs["pool_pre_ping"] = True
 
     return create_engine(url, **kwargs)
@@ -47,6 +62,19 @@ def _bo_dau_sql(value: object) -> object:
     return bo_dau(value) if isinstance(value, str) else value
 
 
+def _khop_tu_sql(khoa: object, tu_khoa: object) -> int:
+    """Từ khoá có đứng ở đầu một từ trong khoá so sánh hay không.
+
+    LIKE '%anh%' khớp cả "thành" và "hành", nên gõ "ảnh" ra gần nửa kho. Ở đây
+    từ khoá chỉ khớp khi bắt đầu tại chỗ không có chữ hay số ngay trước nó, tức
+    đầu chuỗi hoặc sau khoảng trắng và dấu câu; "nhan dang" vẫn khớp "Nhận dạng".
+    Hai bên đã được đưa về cùng dạng chữ thường (có hoặc không dấu) trước khi gọi.
+    """
+    if not isinstance(khoa, str) or not isinstance(tu_khoa, str):
+        return 0
+    return 1 if re.search(r"(?<!\w)" + re.escape(tu_khoa), khoa) else 0
+
+
 @event.listens_for(engine, "connect")
 def _configure_sqlite(dbapi_connection, _connection_record) -> None:
     """Bật các tuỳ chọn cần thiết mỗi khi mở một kết nối SQLite mới.
@@ -61,15 +89,16 @@ def _configure_sqlite(dbapi_connection, _connection_record) -> None:
     Hàm lower ở đây được thay bằng bản của Python, vốn theo đúng quy tắc Unicode.
     MySQL và PostgreSQL đã xử lý đúng phần này nên không cần thay.
 
-    Hàm bo_dau là hàm riêng của nền tảng, SQLite không có sẵn. Phần tìm kiếm và
-    phần sắp xếp theo tên project gọi tới nó, nên nó phải được đăng ký lại trên
-    mọi kết nối mới.
+    Hàm bo_dau và khop_tu là hàm riêng của nền tảng, SQLite không có sẵn. Phần
+    tìm kiếm và phần sắp xếp theo tên project gọi tới chúng, nên chúng phải được
+    đăng ký lại trên mọi kết nối mới.
     """
     if not settings.is_sqlite:
         return
 
     dbapi_connection.create_function("lower", 1, _lower_unicode, deterministic=True)
     dbapi_connection.create_function("bo_dau", 1, _bo_dau_sql, deterministic=True)
+    dbapi_connection.create_function("khop_tu", 2, _khop_tu_sql, deterministic=True)
 
     cursor = dbapi_connection.cursor()
     try:

@@ -1,11 +1,23 @@
 /* Bảng chi tiết một project: toàn bộ thông tin của project, gợi ý mở dần theo
-   tầng, và phần nộp bài. */
+   tầng, và phần nộp bài.
+
+   Đầu bảng là một dải xanh chàm của Trung tâm với lớp ảnh mờ màn hình mã lệnh,
+   cùng cách làm với các dải xanh của trang chủ: tuyến sáu level thu nhỏ với ga
+   của project được tô, tên project, và ba thẻ track, giờ, điểm tích luỹ với biểu
+   tượng của chính khái niệm ấy. Mỗi mục bên dưới mang một biểu tượng cùng bộ ký
+   hiệu; sản phẩm phải nộp là hàng ô đánh dấu, đã hoàn thành project thì các ô
+   được tích; project tiên quyết vẽ thành một tuyến ngắn dẫn tới project này; ba
+   tầng gợi ý hiện sẵn dạng khoá và mở dần. Các mục hiện lần lượt từ trên xuống
+   mỗi lần bảng vẽ, người bật giảm chuyển động thì hiện ngay. */
 
 import { LoiApi, apiCatalog, apiTienDo, phien } from './api.js';
 import {
   $,
   NHAN_TRANG_THAI,
+  bieuTuong,
   chu,
+  chuyenCanh,
+  dongLoi,
   moBang,
   so,
   soGio,
@@ -14,10 +26,14 @@ import {
   thongBao,
 } from './giao-dien.js';
 import { SU_KIEN, phat } from './su-kien.js';
-import { baiNopCua, daHoanThanh } from './tien-do.js';
+import { baiNopCua, daHoanThanh, lichSuBaiNopCua } from './tien-do.js';
 
 // Backend chia gợi ý làm ba tầng, tầng sau cụ thể hơn tầng trước.
 const TANG_CAO_NHAT = 3;
+
+// Danh sách level của kho, lấy từ số liệu tổng quan mà js/api.js đã giữ sẵn
+// sau lượt gọi đầu, để tuyến level ở đầu bảng không phải gọi thêm lượt nào.
+let cacLevelKho = null;
 
 // Độ dài tối đa của hai cột đường dẫn trong bảng submission của backend.
 const DAI_TOI_DA_DUONG_DAN = 512;
@@ -33,7 +49,7 @@ function loiCuaDuongDan(chuoi, ten) {
   try {
     dia_chi = new URL(chuoi);
   } catch {
-    return `${ten} phải là một đường dẫn đầy đủ, bắt đầu bằng https://`;
+    return `${ten} phải là một đường dẫn đầy đủ, bắt đầu bằng http:// hoặc https://`;
   }
   if (dia_chi.protocol !== 'http:' && dia_chi.protocol !== 'https:') {
     return `${ten} chỉ nhận đường dẫn http hoặc https.`;
@@ -44,7 +60,11 @@ function loiCuaDuongDan(chuoi, ten) {
   return null;
 }
 
-const dangXem = { project: null, tangGoiY: 0, slugDangCho: null };
+// truoc: project đang xem lúc người dùng bấm sang một project khác ngay trong
+// bảng (chip tiên quyết), để bảng mới có nút quay lại; null khi mở từ ngoài.
+// tieuDiemSauNop: vừa nộp bài xong; nút gửi bị khoá làm tiêu điểm rơi ra body
+// trước khi phần bài nộp vẽ lại, nên phải nhớ để đưa tiêu điểm vào khối trạng thái.
+const dangXem = { project: null, tangGoiY: 0, slugDangCho: null, truoc: null, tieuDiemSauNop: false };
 
 /* Bản nháp bài nộp.
 
@@ -54,9 +74,15 @@ const dangXem = { project: null, tangGoiY: 0, slugDangCho: null };
    project, và điền lại khi mở bảng lần sau. */
 const KHOA_NHAP = 'nen-tang-project:nhap';
 
+// Chỉ nhận đối tượng thường. Khoá này nằm trong localStorage, tức ai cũng sửa
+// được: một giá trị null hay chuỗi ở đó mà đọc như đối tượng thì bảng chi tiết
+// hỏng ở lần mở sau, và mỗi lần gõ lại ném lỗi.
+const laDoiTuong = (gia) => gia !== null && typeof gia === 'object' && !Array.isArray(gia);
+
 function docCacBanNhap() {
   try {
-    return JSON.parse(localStorage.getItem(KHOA_NHAP) ?? '{}');
+    const gia = JSON.parse(localStorage.getItem(KHOA_NHAP) ?? '{}');
+    return laDoiTuong(gia) ? gia : {};
   } catch {
     return {};
   }
@@ -70,7 +96,10 @@ function ghiCacBanNhap(cacBan) {
   }
 }
 
-const banNhapCua = (slug) => docCacBanNhap()[slug] ?? null;
+function banNhapCua(slug) {
+  const ban = docCacBanNhap()[slug];
+  return laDoiTuong(ban) ? ban : null;
+}
 
 function luuBanNhap(slug, ban) {
   const cacBan = docCacBanNhap();
@@ -87,15 +116,38 @@ function xoaBanNhap(slug) {
 }
 
 /** Một mục có tiêu đề nhỏ, chỉ vẽ khi phần nội dung có gì để hiển thị. */
-function muc(nhan, noiDung) {
-  return noiDung ? `<p class="bang-muc-nhan">${chu(nhan)}</p>${noiDung}` : '';
+/**
+ * Một mục của bảng: nhãn có biểu tượng rồi nội dung, bọc trong khối để các mục
+ * hiện lần lượt theo thứ tự chiSo. Không có nội dung thì không có mục.
+ */
+function muc(bieu, nhan, noiDung, chiSo) {
+  if (!noiDung) return '';
+  return (
+    `<section class="bang-muc" style="--i:${chiSo}">` +
+    `<h4 class="bang-muc-nhan">${bieuTuong(bieu)}${chu(nhan)}</h4>${noiDung}` +
+    '</section>'
+  );
 }
 
 const doan = (noiDung) => (noiDung ? `<p class="bang-doan">${chu(noiDung)}</p>` : '');
 
-const danhSachGach = (cacDong) =>
+/**
+ * Danh sách sản phẩm phải nộp, mỗi dòng một ô đánh dấu như hình bước hai của mục
+ * Ba bước; project đã hoàn thành thì các ô được tích. Thử thách nâng cao dùng
+ * ngôi sao của badge điểm, vì đó là phần làm thêm chứ không phải phần bắt buộc.
+ */
+function danhSachO(cacDong, daXong) {
+  if (cacDong.length === 0) return '';
+  return (
+    `<ul class="bang-danh-sach ds-o${daXong ? ' da-xong' : ''}">` +
+    cacDong.map((dong, i) => `<li style="--j:${i}"><span class="o-tich" aria-hidden="true">${bieuTuong('tich')}</span><span>${chu(dong)}</span></li>`).join('') +
+    '</ul>'
+  );
+}
+
+const danhSachSao = (cacDong) =>
   cacDong.length > 0
-    ? `<ul class="bang-danh-sach">${cacDong.map((dong) => `<li>${chu(dong)}</li>`).join('')}</ul>`
+    ? `<ul class="bang-danh-sach ds-sao">${cacDong.map((dong) => `<li>${bieuTuong('badge-diem')}<span>${chu(dong)}</span></li>`).join('')}</ul>`
     : '';
 
 /**
@@ -105,23 +157,44 @@ const danhSachGach = (cacDong) =>
  * phần này nói "phải hoàn thành trước". Project đã xong được đánh dấu để người
  * học biết còn thiếu cái nào.
  */
-function veTienQuyet(danhSach) {
+function veTienQuyet(danhSach, tenProject) {
   if (danhSach.length === 0) return '';
-  const cacNut = danhSach
+  // Các project tiên quyết nối nhau thành một tuyến ngắn, ga cuối là chính
+  // project này, cùng ngữ pháp vòng tròn nối bằng đường với tuyến level.
+  const cacGa = danhSach
     .map((mot) => {
       const xong = daHoanThanh(mot.slug);
       return (
+        `<li class="tq-ga${xong ? ' da-xong' : ''}">` +
         `<button type="button" class="the-lien-ket${xong ? ' da-xong' : ''}" data-mo-project="${chu(mot.slug)}">` +
-        `${xong ? '✓ ' : ''}${chu(mot.title)}</button>`
+        `${bieuTuong('tich')}${chu(mot.title)}</button>` +
+        '</li>'
       );
     })
     .join('');
-  return `<div class="the-hang">${cacNut}</div>`;
+  return `<ol class="tq-tuyen">${cacGa}<li class="tq-ga la-day"><span class="tq-day">${chu(tenProject)}</span></li></ol>`;
 }
 
 /** Những project tiên quyết mà người đang đăng nhập chưa hoàn thành. */
 const conThieuTienQuyet = (project) =>
   project.prerequisites.filter((mot) => !daHoanThanh(mot.slug));
+
+/** Tên các project tiên quyết còn thiếu, mỗi tên là một nút mở project đó. */
+const nutTienQuyet = (conThieu) =>
+  conThieu
+    .map((mot) => `<button type="button" class="the-lien-ket" data-mo-project="${chu(mot.slug)}">${chu(mot.title)}</button>`)
+    .join(', ');
+
+/**
+ * Dòng báo khoá ngay dưới dải xanh, để người mở project biết ngay từ đầu bảng
+ * chứ không phải cuộn tới cuối phần Bài nộp mới thấy.
+ */
+function veDongKhoa(project) {
+  if (!phien.daDangNhap) return '';
+  const conThieu = conThieuTienQuyet(project);
+  if (conThieu.length === 0) return '';
+  return `<p class="bang-khoa">${bieuTuong('khoa')}<span>Chưa mở khoá · hoàn thành trước: ${nutTienQuyet(conThieu)}</span></p>`;
+}
 
 /**
  * Người phụ trách của project, lấy theo track.
@@ -142,11 +215,8 @@ function veNguoiPhuTrach(nguoi) {
   );
 }
 
-/** Phần bài nộp đã có của người đang đăng nhập cho chính project này. */
-function veBaiNopCuaToi(slug) {
-  const bai = baiNopCua(slug);
-  if (!bai) return '';
-
+/** Một bài nộp: nhãn trạng thái, mốc thời gian, điểm và nhận xét của người chấm. */
+function veMotBaiNop(bai, laLanTruoc) {
   // Hai con số dễ bị đọc nhầm thành một, nên mỗi con số được gọi bằng đúng tên
   // của nó: điểm bài nộp là mức người chấm đánh giá, còn điểm tích luỹ là số
   // điểm cố định của project cộng vào tài khoản khi bài đạt.
@@ -159,8 +229,10 @@ function veBaiNopCuaToi(slug) {
   }
 
   return (
-    '<div class="o-bai-nop">' +
-    `<p class="bai-nop-trang-thai the-${chu(bai.status)}">${chu(NHAN_TRANG_THAI[bai.status])}</p>` +
+    `<div class="o-bai-nop${laLanTruoc ? ' bai-nop-truoc' : ''}" data-bai-nop-id="${bai.id}" tabindex="-1">` +
+    '<p class="bai-nop-trang-thai">' +
+    (laLanTruoc ? '<span class="bai-nop-lan">Lần chấm trước</span>' : '') +
+    `<span class="nhan the-${chu(bai.status)}">${chu(NHAN_TRANG_THAI[bai.status])}</span></p>` +
     `<p class="bai-nop-moc">Nộp lúc ${chu(thoiGian(bai.submitted_at))}.` +
     (bai.reviewed_at ? ` Chấm lúc ${chu(thoiGian(bai.reviewed_at))}.` : '') +
     '</p>' +
@@ -168,6 +240,17 @@ function veBaiNopCuaToi(slug) {
     (bai.feedback ? `<p class="bai-nop-nhan-xet">${chu(bai.feedback)}</p>` : '') +
     '</div>'
   );
+}
+
+/**
+ * Phần bài nộp đã có của người đang đăng nhập cho chính project này: bài tiêu
+ * biểu trước, rồi những lần chấm trước đó. Nộp lại sau "Cần sửa lại" thì nhận
+ * xét của lần trước vẫn còn đây, để người học đối chiếu trong lúc chờ chấm.
+ */
+function veBaiNopCuaToi(slug) {
+  const bai = baiNopCua(slug);
+  if (!bai) return '';
+  return veMotBaiNop(bai, false) + lichSuBaiNopCua(slug).map((cu) => veMotBaiNop(cu, true)).join('');
 }
 
 /**
@@ -190,7 +273,7 @@ function veKhuNopBai(project) {
   if (daHoanThanh(project.slug)) {
     return (
       '<div class="o-nop-bai">' +
-      '<p class="bang-doan">Bạn đã hoàn thành project này. Mỗi project chỉ tính điểm một lần nên hệ thống không nhận thêm bài nộp.</p>' +
+      '<p class="bang-doan">Bạn đã hoàn thành project này.</p>' +
       '</div>'
     );
   }
@@ -200,7 +283,7 @@ function veKhuNopBai(project) {
     return (
       '<div class="o-nop-bai">' +
       '<p class="bang-doan">Project này chưa mở khoá. Hoàn thành trước ' +
-      conThieu.map((mot) => chu(mot.title)).join(', ') +
+      nutTienQuyet(conThieu) +
       ' rồi mới nộp bài ở đây được.</p>' +
       '</div>'
     );
@@ -209,21 +292,19 @@ function veKhuNopBai(project) {
   const baiCu = baiNopCua(project.slug);
   const dangCho = baiCu?.status === 'pending';
   const daTungNop = baiCu !== null;
-
-  const dan = dangCho
-    ? 'Bài của bạn đang chờ chấm. Sửa đường dẫn hay ghi chú rồi gửi lại thì bản mới thay hẳn bản đang chờ, người chấm chỉ thấy một bài.'
-    : daTungNop
-      ? 'Bài nộp trước đã có kết quả. Sửa theo nhận xét rồi nộp lại ở đây.'
-      : '';
+  // Bài bị trả về hay chưa đạt thì nộp lại thường là cùng kho mã đã sửa, nên hai
+  // ô đường dẫn điền sẵn từ bài trước; ghi chú thì để trống vì nói về lần nộp mới.
+  const dienLai = dangCho || baiCu?.status === 'revision' || baiCu?.status === 'rejected';
 
   // Ba ô được điền sẵn theo thứ tự ưu tiên: chữ người dùng đang gõ dở lần trước,
-  // rồi tới nội dung của bài đang chờ chấm, cuối cùng là để trống.
+  // rồi tới nội dung của bài trước, cuối cùng là để trống.
   const nhap = banNhapCua(project.slug);
-  const cu = (ten) => chu(nhap?.[ten] ?? (dangCho ? (baiCu[ten] ?? '') : ''));
+  const cu = (ten) =>
+    chu(nhap?.[ten] ?? (dienLai && (dangCho || ten !== 'note') ? (baiCu[ten] ?? '') : ''));
 
   return (
     '<form class="o-nop-bai mau" id="mau-nop-bai" novalidate>' +
-    (dan ? `<p class="bang-doan">${dan}</p>` : '') +
+    (dangCho ? '<p class="bang-doan">Bài của bạn đang chờ chấm.</p>' : '') +
     (nhap
       ? '<p class="mau-chu-dan">Đây là nội dung bạn gõ dở lần trước, hệ thống giữ lại giúp.</p>'
       : '') +
@@ -236,9 +317,10 @@ function veKhuNopBai(project) {
     '<label>Ghi chú gửi người chấm' +
     `<textarea name="note" rows="3" maxlength="2000" placeholder="Phần nào đã xong, phần nào còn dở.">${cu('note')}</textarea>` +
     '</label>' +
-    '<p class="mau-loi" role="alert"></p>' +
+    '<p class="mau-loi" id="nop-bai-loi" role="alert"></p>' +
     '<button type="submit" class="nut nut-day">' +
     (dangCho ? 'Cập nhật bài đang chờ' : daTungNop ? 'Nộp lại' : 'Nộp bài') +
+    bieuTuong('nop') +
     '</button>' +
     '</form>'
   );
@@ -247,43 +329,80 @@ function veKhuNopBai(project) {
 /** Phần bài nộp: bài đã có, rồi tới biểu mẫu nộp bài. */
 const veKhuBaiNop = (project) => veBaiNopCuaToi(project.slug) + veKhuNopBai(project);
 
+/**
+ * Tuyến level thu nhỏ ở đầu bảng, ga của project được tô. Chỉ để nhìn: level đã
+ * ghi ở nhãn của bảng. Không có số liệu tổng quan thì không vẽ, không đoán số level.
+ */
+function veTuyenLevel(levelId) {
+  if (cacLevelKho === null) return '';
+  return (
+    '<ol class="bang-tuyen" aria-hidden="true">' +
+    cacLevelKho.map((id) => `<li class="bang-ga${id === levelId ? ' la-day' : ''}">${id}</li>`).join('') +
+    '</ol>'
+  );
+}
+
+/** Ba tầng gợi ý: tầng chưa mở hiện dạng khoá, để thấy trước còn bao nhiêu tầng. */
+const veTangKhoa = (tang) =>
+  `<div class="goi-y-dong la-khoa" data-tang="${tang}"><span class="goi-y-tang">${bieuTuong('khoa')}Tầng ${tang}</span><span class="goi-y-cho" aria-hidden="true"></span></div>`;
+
 function veBang(project) {
+  const daXong = daHoanThanh(project.slug);
   const theDau = [
-    project.track.name,
-    soGio(project.estimated_hours),
-    `${so(project.reward_points)} điểm tích luỹ`,
+    ['badge-track', project.track.name],
+    ['gio', soGio(project.estimated_hours)],
+    ['badge-diem', `${so(project.reward_points)} điểm tích luỹ`],
   ];
 
   $('#bang-project-nhan').textContent = tenLevel(project.level);
+  // Tên của hộp thoại ghép nhãn level với tên project, chỉ khi tên đã có trong
+  // trang; tham chiếu aria tới một id chưa tồn tại là một tham chiếu hỏng.
+  $('#bang-project').setAttribute('aria-labelledby', 'bang-project-nhan bang-project-ten');
+  const truoc = dangXem.truoc;
   $('#bang-project-than').innerHTML =
-    `<h3 class="bang-ten">${chu(project.title)}</h3>` +
-    `<div class="bang-the">${theDau.map((mot) => `<span>${chu(mot)}</span>`).join('')}</div>` +
+    (truoc
+      ? `<p class="bang-quay-lai"><button type="button" class="the-lien-ket" data-mo-project="${chu(truoc.slug)}" data-quay-lai>${bieuTuong('trai')}Quay lại ${chu(truoc.title)}</button></p>`
+      : '') +
+    '<div class="bang-truong">' +
+    veTuyenLevel(project.level.id) +
+    `<h3 class="bang-ten" id="bang-project-ten">${chu(project.title)}</h3>` +
+    `<div class="bang-the">${theDau.map(([bieu, mot]) => `<span>${bieuTuong(bieu)}${chu(mot)}</span>`).join('')}</div>` +
+    '</div>' +
+    veDongKhoa(project) +
     `<p class="bang-tom-tat">${chu(project.summary)}</p>` +
-    muc('Bối cảnh', doan(project.context)) +
-    muc('Mục tiêu học tập', doan(project.objective)) +
+    muc('boi-canh', 'Bối cảnh', doan(project.context), 1) +
+    muc('muc-tieu', 'Mục tiêu học tập', doan(project.objective), 2) +
     muc(
+      'skill',
       'Skill được rèn',
       project.skills.length > 0
         ? `<div class="the-hang">${project.skills.map((kn) => `<span class="the-tinh">${chu(kn.name)}</span>`).join('')}</div>`
-        : ''
+        : '',
+      3
     ) +
-    muc('Sản phẩm phải nộp', danhSachGach(project.deliverables)) +
-    muc('Thử thách nâng cao', danhSachGach(project.bonus_challenges)) +
-    muc('Phải hoàn thành trước', veTienQuyet(project.prerequisites)) +
-    muc('Người phụ trách', veNguoiPhuTrach(project.track.mentor)) +
+    muc('badge-project', 'Sản phẩm phải nộp', danhSachO(project.deliverables, daXong), 4) +
+    muc('badge-diem', 'Thử thách nâng cao', danhSachSao(project.bonus_challenges), 5) +
+    muc('khoa', 'Phải hoàn thành trước', veTienQuyet(project.prerequisites, project.title), 6) +
+    muc('nguoi', 'Người phụ trách', veNguoiPhuTrach(project.track.mentor), 7) +
     muc(
+      'du-lieu',
       'Nguồn dữ liệu',
       project.dataset_url
-        ? `<p class="bang-doan"><a href="${chu(project.dataset_url)}" target="_blank" rel="noreferrer">${chu(project.dataset_url)}</a></p>`
-        : ''
+        ? `<p class="bang-doan"><a href="${chu(project.dataset_url)}" target="_blank" rel="noreferrer">${chu(project.dataset_url)} ${bieuTuong('ngoai')}</a></p>`
+        : '',
+      8
     ) +
-    '<p class="bang-muc-nhan">Gợi ý</p>' +
+    '<section class="bang-muc" style="--i:9">' +
+    `<h4 class="bang-muc-nhan">${bieuTuong('tang')}Gợi ý</h4>` +
     '<div id="o-goi-y">' +
-    '<p class="bang-doan">Gợi ý mở dần theo ba tầng. Tầng sau cụ thể hơn tầng trước, nên hãy tự nghĩ trước khi mở tiếp.</p>' +
+    Array.from({ length: TANG_CAO_NHAT }, (_, i) => veTangKhoa(i + 1)).join('') +
     '<button type="button" class="nut nut-vien nut-goi-y" id="nut-goi-y">Mở gợi ý tầng 1</button>' +
     '</div>' +
-    '<p class="bang-muc-nhan">Bài nộp</p>' +
-    `<div id="khu-bai-nop">${veKhuBaiNop(project)}</div>`;
+    '</section>' +
+    '<section class="bang-muc" style="--i:10">' +
+    `<h4 class="bang-muc-nhan">${bieuTuong('nop')}Bài nộp</h4>` +
+    `<div id="khu-bai-nop">${veKhuBaiNop(project)}</div>` +
+    '</section>';
 }
 
 /* Gợi ý. */
@@ -302,14 +421,17 @@ async function moTiepGoiY() {
     dangXem.tangGoiY = tangMoi;
 
     const oGoiY = $('#o-goi-y');
-    const cacDong = danhSach
-      .map(
-        (mot) =>
-          `<div class="goi-y-dong"><span class="goi-y-tang">Tầng ${mot.tier}</span><p>${chu(mot.content)}</p></div>`
-      )
-      .join('');
-    oGoiY.querySelectorAll('.goi-y-dong').forEach((dong) => dong.remove());
-    nut.insertAdjacentHTML('beforebegin', cacDong);
+    // Backend trả mọi tầng tới tangMoi. Mỗi tầng thay đúng ô khoá của mình, tầng đã
+    // mở rồi thì thay tại chỗ; tầng backend không có thì ô khoá của nó bỏ đi.
+    for (const mot of danhSach) {
+      const cho = oGoiY.querySelector(`.goi-y-dong[data-tang="${mot.tier}"]`);
+      const dong = `<div class="goi-y-dong da-mo" data-tang="${mot.tier}"><span class="goi-y-tang">Tầng ${mot.tier}</span><p>${chu(mot.content)}</p></div>`;
+      if (cho) cho.outerHTML = dong;
+      else nut.insertAdjacentHTML('beforebegin', dong);
+    }
+    if (danhSach.length < tangMoi) {
+      oGoiY.querySelectorAll('.goi-y-dong.la-khoa').forEach((dong) => dong.remove());
+    }
 
     if (tangMoi >= TANG_CAO_NHAT || danhSach.length < tangMoi) {
       nut.remove();
@@ -325,6 +447,19 @@ async function moTiepGoiY() {
 
 /* Nộp bài. */
 
+/**
+ * Báo một ô của biểu mẫu nộp bài sai, theo cùng cách với biểu mẫu đăng ký: câu
+ * lỗi hiện ra, ô sai được đánh dấu cho trình đọc màn hình và nhận tiêu điểm để
+ * người dùng bàn phím sửa ngay thay vì phải đi tìm ô đó từ nút gửi.
+ */
+function baoOSai(mau, oLoi, ten, cau) {
+  oLoi.textContent = cau;
+  const o = mau[ten];
+  o.setAttribute('aria-invalid', 'true');
+  o.setAttribute('aria-describedby', oLoi.id);
+  o.focus();
+}
+
 async function nopBai(mau) {
   const oLoi = mau.querySelector('.mau-loi');
   const duLieu = new FormData(mau);
@@ -336,15 +471,18 @@ async function nopBai(mau) {
   if (banChayThu) than.demo_url = banChayThu;
 
   if (!than.repo_url) {
-    oLoi.textContent = 'Cần điền đường dẫn tới mã nguồn.';
+    baoOSai(mau, oLoi, 'repo_url', 'Cần điền đường dẫn tới mã nguồn.');
     return;
   }
 
-  const loiDuongDan =
-    loiCuaDuongDan(than.repo_url, 'Đường dẫn tới mã nguồn') ??
-    (than.demo_url ? loiCuaDuongDan(than.demo_url, 'Đường dẫn tới bản chạy thử') : null);
-  if (loiDuongDan !== null) {
-    oLoi.textContent = loiDuongDan;
+  const loiMaNguon = loiCuaDuongDan(than.repo_url, 'Đường dẫn tới mã nguồn');
+  if (loiMaNguon !== null) {
+    baoOSai(mau, oLoi, 'repo_url', loiMaNguon);
+    return;
+  }
+  const loiChayThu = than.demo_url ? loiCuaDuongDan(than.demo_url, 'Đường dẫn tới bản chạy thử') : null;
+  if (loiChayThu !== null) {
+    baoOSai(mau, oLoi, 'demo_url', loiChayThu);
     return;
   }
 
@@ -356,6 +494,7 @@ async function nopBai(mau) {
     const dangCho = baiNopCua(dangXem.project.slug)?.status === 'pending';
     await apiTienDo.nopBai(dangXem.project.slug, than);
     xoaBanNhap(dangXem.project.slug);
+    dangXem.tieuDiemSauNop = true;
     thongBao(
       dangCho
         ? 'Đã cập nhật bài đang chờ chấm.'
@@ -370,28 +509,74 @@ async function nopBai(mau) {
 
 /* Mở bảng. */
 
-/** Mở bảng chi tiết của một project theo slug. */
-export async function moProject(slug) {
+/**
+ * Mở bảng chi tiết của một project theo slug.
+ *
+ * Tham số nguon là phần tử người dùng vừa bấm, nếu có. Tên project trong phần
+ * tử đó được gắn tên chuyển cảnh, nên khi bảng vẽ xong, tên bay từ chỗ cũ lên
+ * tiêu đề của bảng thay vì biến mất ở một chỗ rồi hiện ra ở chỗ khác.
+ *
+ * baiNopId: mở để xem một bài nộp cụ thể (dòng trong bảng tài khoản), bảng cuộn
+ * tới đúng bài đó sau khi vẽ.
+ */
+export async function moProject(slug, nguon = null, { baiNopId = null } = {}) {
+  // Bấm từ trong chính bảng project (chip tiên quyết) thì nhớ project đang xem,
+  // để bảng mới có đường quay lại; mở từ nơi khác thì không.
+  const tuTrongBang = nguon?.closest('#bang-project') !== null && nguon !== null;
+  dangXem.truoc =
+    tuTrongBang && dangXem.project && dangXem.project.slug !== slug
+      ? { slug: dangXem.project.slug, title: dangXem.project.title }
+      : null;
   dangXem.tangGoiY = 0;
   dangXem.slugDangCho = slug;
   $('#bang-project-nhan').textContent = '';
+  $('#bang-project').setAttribute('aria-labelledby', 'bang-project-nhan');
   $('#bang-project-than').innerHTML = '<p class="dang-tai">Đang tải project…</p>';
   moBang('bang-project');
 
   let project;
   try {
-    project = await apiCatalog.chiTietProject(slug);
+    // Số liệu tổng quan đã được phần kho gọi từ lúc mở trang, js/api.js giữ lại
+    // lời hứa ấy nên đây không phải một lượt gọi mới; lỗi thì bảng bỏ tuyến level.
+    const [chiTiet, thongKe] = await Promise.all([
+      apiCatalog.chiTietProject(slug),
+      apiCatalog.thongKe().catch(() => null),
+    ]);
+    project = chiTiet;
+    cacLevelKho = thongKe ? thongKe.by_level.map((mot) => mot.level.id).sort((a, b) => a - b) : null;
   } catch (loi) {
     if (dangXem.slugDangCho !== slug) return;
-    $('#bang-project-than').innerHTML =
-      `<p class="dang-tai">${chu(loi instanceof LoiApi ? loi.message : 'Không tải được project.')}</p>`;
+    $('#bang-project-than').innerHTML = dongLoi(
+      loi instanceof LoiApi ? loi.message : 'Không tải được project.'
+    );
     return;
   }
 
   // Bấm nhanh sang project khác thì phản hồi về sau không được vẽ đè lên.
   if (dangXem.slugDangCho !== slug) return;
   dangXem.project = project;
+
+  const tenNguon = nguon?.querySelector('.hang-ten > span, .chu-thich-ten, .the-lien-ket, .bai-nop-ten, .de-xuat-ten, .leo-ten, .hop-tim-ten, .kg-the-ten');
+  if (tenNguon) tenNguon.style.viewTransitionName = 'ten-project';
+
+  // Thân bảng vẽ trước, ngoài chuyển cảnh: chuyển cảnh chỉ chuyển tên chuyển
+  // cảnh từ chỗ bấm lên tiêu đề để tên bay, còn nội dung đã có sẵn trên màn hình
+  // dù trình duyệt có hoãn chuyển cảnh bao lâu. Vẽ bên trong chuyển cảnh thì
+  // suốt lúc hoãn bảng chỉ có tiêu đề và tóm tắt, thân trống.
   veBang(project);
+  if (baiNopId !== null) {
+    const o = $(`#bang-project-than [data-bai-nop-id="${baiNopId}"]`);
+    if (o) {
+      o.scrollIntoView({ block: 'center' });
+      o.focus({ preventScroll: true });
+    }
+  }
+  await chuyenCanh(() => {
+    if (tenNguon) tenNguon.style.viewTransitionName = '';
+    const tenBang = $('#bang-project-than .bang-ten');
+    if (tenBang) tenBang.style.viewTransitionName = 'ten-project';
+  });
+  $('#bang-project-than .bang-ten')?.style.removeProperty('view-transition-name');
 }
 
 /**
@@ -404,7 +589,22 @@ export async function moProject(slug) {
 export function veLaiBangDangMo() {
   const khu = $('#khu-bai-nop');
   if (dangXem.project === null || khu === null) return;
+  // Tiêu điểm có thể đang ở ngay trong phần bị vẽ lại: đăng nhập từ bảng này xong,
+  // hộp đăng nhập đóng lại và trả tiêu điểm về nút "Đăng nhập" của phần bài nộp.
+  // Nút đó bị thay thì tiêu điểm rơi ra body, nên nó được đưa vào điều khiển đầu
+  // tiên của phần mới, thường là ô đường dẫn để nộp bài; phần mới không có điều
+  // khiển nào thì về nút đóng bảng, cũng là chỗ tiêu điểm đứng khi bảng vừa mở.
+  const giuTieuDiem = khu.contains(document.activeElement) || dangXem.tieuDiemSauNop;
+  dangXem.tieuDiemSauNop = false;
   khu.innerHTML = veKhuBaiNop(dangXem.project);
+  if (!giuTieuDiem) return;
+  // Vừa nộp bài xong thì tiêu điểm vào khối trạng thái của bài, để trình đọc màn
+  // hình đọc ngay "Chờ chấm" thay vì rơi vào ô đường dẫn của biểu mẫu.
+  (
+    khu.querySelector('.o-bai-nop:not(.bai-nop-truoc)') ??
+    khu.querySelector('input, textarea, button') ??
+    $('#bang-project [data-dong]')
+  )?.focus();
 }
 
 export function khoiTao() {
@@ -416,17 +616,28 @@ export function khoiTao() {
       return;
     }
     if (sk.target.closest('[data-can-dang-nhap]')) {
-      phat(SU_KIEN.CAN_DANG_NHAP);
+      // Gửi kèm project đang xem, để hộp đăng nhập nói rõ đăng nhập để nộp bài cho project nào.
+      phat(SU_KIEN.CAN_DANG_NHAP, { project: dangXem.project });
       return;
     }
-    const nutTienQuyet = sk.target.closest('[data-mo-project]');
-    if (nutTienQuyet) moProject(nutTienQuyet.dataset.moProject);
+    const nutMo = sk.target.closest('[data-mo-project]');
+    if (!nutMo) return;
+    // Nút quay lại mở project cũ như mở từ ngoài, để không tạo vòng quay lại nữa.
+    if (nutMo.hasAttribute('data-quay-lai')) {
+      dangXem.project = null;
+      moProject(nutMo.dataset.moProject);
+      return;
+    }
+    moProject(nutMo.dataset.moProject, nutMo.parentElement);
   });
 
   // Mỗi lần gõ là một lần ghi lại bản nháp, để đóng bảng không làm mất công viết.
   than.addEventListener('input', (sk) => {
     const mau = sk.target.closest('#mau-nop-bai');
     if (!mau || dangXem.project === null) return;
+    // Người dùng đã bắt đầu sửa thì bỏ dấu sai trên ô đó.
+    sk.target.removeAttribute('aria-invalid');
+    sk.target.removeAttribute('aria-describedby');
     const duLieu = new FormData(mau);
     luuBanNhap(dangXem.project.slug, {
       repo_url: String(duLieu.get('repo_url') || ''),

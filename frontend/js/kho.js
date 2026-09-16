@@ -4,98 +4,81 @@
    Trang chủ chỉ giới thiệu, nên mỗi level lấy đúng sáu project chứ không tải cả
    kho về. Việc lọc và tìm kiếm nằm ở trang kho project, tệp js/trang-kho.js. */
 
-import { LoiApi, apiCatalog } from './api.js';
+import { LoiApi, apiCatalog, phien } from './api.js';
 import {
   $,
   NHAN_TRANG_THAI,
+  bieuTuong,
   chu,
-  dongTrong,
+  dongLoi,
   so,
   soGio,
   tenLevel,
-  theoDoiHienDan,
   thongBao,
 } from './giao-dien.js';
+import { duongDan } from './goc.js';
 import { moProject } from './project.js';
-import { daHoanThanh, tienDoLevel, trangThaiCua } from './tien-do.js';
+import { SU_KIEN, phat } from './su-kien.js';
+import { daHoanThanh, oTrangThai, tienDoLevel, trangThaiCua } from './tien-do.js';
 
 // Số project hiển thị cho mỗi level ở trang chủ.
 const MOI_LEVEL = 6;
-
-// Ba màu của bảng màu, dùng để phân biệt ba chặng của lộ trình: level 0 tới 2
-// màu đỏ, level 3 và 4 màu vàng đồng, level 5 màu mực.
-const MAU_LEVEL = ['#A21C2B', '#A21C2B', '#A21C2B', '#E0A03A', '#E0A03A', '#16130F'];
-
-// Cùng ba chặng đó nhưng dùng cho phần chữ. Vàng đồng làm nền thì đọc được,
-// còn làm màu chữ trên nền giấy thì quá nhạt, nên chỗ nào là chữ sẽ lấy sắc
-// vàng đậm hơn.
-const MAU_LEVEL_CHU = ['#A21C2B', '#A21C2B', '#A21C2B', '#8F5E0C', '#8F5E0C', '#16130F'];
-
-const mauCuaLevel = (maLevel) => MAU_LEVEL[maLevel] ?? '#16130F';
-const mauChuCuaLevel = (maLevel) => MAU_LEVEL_CHU[maLevel] ?? '#16130F';
-
-/** Hai biến màu mà mục lục và mỗi đoạn level dùng để tự tô theo chặng của mình. */
-const bienMau = (maLevel) =>
-  `--mau-level:${mauCuaLevel(maLevel)};--mau-level-chu:${mauChuCuaLevel(maLevel)}`;
 
 const trangThai = {
   thongKe: null,
   // Vài project đầu của từng level, khoá là số hiệu level.
   theoLevel: new Map(),
+  // Câu báo lỗi của những level mà lượt gọi hỏng, khoá là số hiệu level. Để
+  // riêng chứ không trộn vào theoLevel, vì phần khác đọc theoLevel như danh sách.
+  loiLevel: new Map(),
 };
 
 /* Phần vẽ. */
 
+/**
+ * Điền số liệu vào câu dẫn của phần mở đầu.
+ *
+ * Con số nằm ngay trong câu văn, không tách ra thành một dải số liệu riêng: câu
+ * "Kho hiện có 200 project thuộc 11 track" đọc tự nhiên hơn bốn con số to đứng
+ * cạnh bốn dòng chú thích.
+ */
 function veSoLieu() {
-  const { projects, skills, by_level: theoLevel, by_track: theoTrack } = trangThai.thongKe;
-  const cacO = [
-    [projects, 'project trong kho'],
-    [theoLevel.length, 'level, từ dễ đến khó'],
-    [theoTrack.length, 'track chuyên môn'],
-    [skills, 'skill được rèn qua các project'],
-  ];
-  $('#so-lieu').innerHTML = cacO
-    .map(
-      ([gia, nhan]) =>
-        `<div><p class="so-lieu-so" data-dem="${gia}">0</p><p class="so-lieu-chu">${chu(nhan)}</p></div>`
-    )
-    .join('');
-  $('#tieu-de-so').textContent = `${so(projects)} project.`;
+  const { projects, skills, by_track: theoTrack } = trangThai.thongKe;
+  const gia = { projects, tracks: theoTrack.length, skills };
+  for (const o of document.querySelectorAll('[data-so]')) {
+    o.textContent = so(gia[o.dataset.so] ?? 0);
+  }
+  $('#tieu-de-so').textContent = `${so(projects)} project`;
 }
 
+/**
+ * Tuyến sáu level ở phần mở đầu.
+ *
+ * Mỗi level là một ga: số hiệu trong vòng tròn, tên, số project, và một thanh
+ * dài theo tỷ lệ so với level đông nhất. Chỉ số thứ tự và tỷ lệ được đưa vào
+ * hai biến CSS để tệp kiểu tự xếp thời điểm hiện của từng ga theo đúng lúc
+ * đường tuyến vẽ tới. Bấm một ga thì cuộn tới đoạn của level đó ở phía dưới.
+ */
 function veHinhLevel() {
   const danhSach = trangThai.thongKe.by_level;
-  const buoc = 68;
-  // Điểm nút đầu tiên nằm ở toạ độ 26, nên đường nối cũng bắt đầu từ đó chứ
-  // không bắt đầu từ mép trên khung vẽ, nếu không sẽ thừa một đoạn thò lên trên
-  // điểm nút đầu và thò xuống dưới điểm nút cuối.
-  const dau = 26;
-  const cuoi = dau + (danhSach.length - 1) * buoc;
-  const dai = cuoi - dau;
+  const nhieuNhat = Math.max(1, ...danhSach.map((mot) => mot.projects));
 
-  const cacNut = danhSach
+  $('#hinh-level').innerHTML = danhSach
     .map((mot, chiSo) => {
-      const y = dau + chiSo * buoc;
+      const tiLe = (mot.projects / nhieuNhat).toFixed(3);
       return (
-        `<circle class="nut-sang" cx="40" cy="${y}" r="6" fill="${mauCuaLevel(mot.level.id)}" style="animation-delay:${chiSo * 0.4}s"></circle>` +
-        `<text x="62" y="${y + 5}">${chu(mot.level.name)}</text>` +
-        `<text class="hinh-so" x="228" y="${y + 5}" text-anchor="end">${mot.projects}</text>`
+        `<li class="ga" style="--i:${chiSo};--ti-le:${tiLe}">` +
+        `<button type="button" class="ga-nut" data-level="${mot.level.id}">` +
+        `<span class="ga-diem">${mot.level.id}</span>` +
+        '<span class="ga-chu">' +
+        `<span class="ga-ten">${chu(mot.level.name)}</span>` +
+        `<span class="ga-dem">${mot.projects} project</span>` +
+        '<span class="ga-vach"><i></i></span>' +
+        '</span>' +
+        '</button></li>'
       );
     })
     .join('');
-
-  $('#hinh-level').innerHTML =
-    `<path d="M40 ${dau} L40 ${cuoi}" fill="none" stroke="rgba(22,19,15,.14)" stroke-width="1"></path>` +
-    `<path class="duong-ve" d="M40 ${dau} L40 ${cuoi}" fill="none" stroke="#A21C2B" stroke-width="2" stroke-dasharray="${dai}" stroke-dashoffset="${dai}"></path>` +
-    `<g class="hinh-chu">${cacNut}</g>`;
-}
-
-function veDaiChay() {
-  const mot = trangThai.thongKe.by_track
-    .map((item) => `<span>${chu(item.track.name)}</span><b>·</b>`)
-    .join('');
-  // Nội dung lặp hai lần để vòng chạy nối liền, không hở quãng trống.
-  $('#dai-chay-trong').innerHTML = mot + mot;
 }
 
 /**
@@ -114,7 +97,7 @@ function veMucLuc() {
       const tong = cua ? cua.total : mot.projects;
       const tiLe = tong === 0 ? 0 : (daXong / tong) * 100;
       return (
-        `<button type="button" class="muc-nut" data-level="${mot.level.id}" style="${bienMau(mot.level.id)}">` +
+        `<button type="button" class="muc-nut" data-level="${mot.level.id}">` +
         '<span class="muc-hang">' +
         `<span class="muc-so">${mot.level.id}</span>` +
         `<span class="muc-ten">${chu(mot.level.name)}</span>` +
@@ -130,16 +113,21 @@ function veMucLuc() {
 function veMotHang(project) {
   const trangThaiBai = trangThaiCua(project.slug);
   const xong = daHoanThanh(project.slug);
+  const o = oTrangThai(project);
 
   return (
-    `<button type="button" class="hang${xong ? ' da-xong' : ''}" data-slug="${chu(project.slug)}">` +
-    `<span class="hang-o">${xong ? '✓' : ''}</span>` +
-    `<span class="hang-ten">${chu(project.title)}` +
-    (trangThaiBai && !xong ? `<i class="hang-nhan">${chu(NHAN_TRANG_THAI[trangThaiBai])}</i>` : '') +
+    `<button type="button" class="hang${xong ? ' da-xong' : ''}${o.khoa ? ' bi-khoa' : ''}" data-slug="${chu(project.slug)}">` +
+    `<span class="hang-o" role="img" aria-label="${chu(o.nhan)}" title="${chu(o.nhan)}">${bieuTuong(o.khoa ? 'khoa' : 'tich')}</span>` +
+    `<span class="hang-ten"><span>${chu(project.title)}</span>` +
+    (trangThaiBai && !xong
+      ? `<i class="hang-nhan nhan the-${chu(trangThaiBai)}">${chu(NHAN_TRANG_THAI[trangThaiBai])}</i>`
+      : '') +
     '</span>' +
+    '<span class="hang-meta">' +
     `<span class="hang-track">${chu(project.track.name)}</span>` +
     `<span class="hang-gio">${soGio(project.estimated_hours)}</span>` +
-    '<span class="hang-mo">Xem chi tiết →</span>' +
+    '</span>' +
+    `<span class="hang-mo"><span>Xem chi tiết</span>${bieuTuong('mui-ten')}</span>` +
     '</button>'
   );
 }
@@ -153,27 +141,29 @@ function veCotNoiDung() {
       const nhom = trangThai.theoLevel.get(mot.level.id) ?? [];
       const conLai =
         mot.projects > nhom.length
-          ? `<p class="doan-them"><a href="/kho.html?level=${mot.level.id}">Xem tất cả ${mot.projects} project của level ${chu(mot.level.name)}<span aria-hidden="true">→</span></a></p>`
+          ? `<p class="doan-them"><a href="${duongDan('kho.html')}?level=${mot.level.id}">Xem tất cả ${mot.projects} project của level ${chu(mot.level.name)}${bieuTuong('mui-ten')}</a></p>`
           : '';
-      const than =
-        nhom.length > 0
-          ? `<div class="bang-hang">${nhom.map(veMotHang).join('')}</div>${conLai}`
-          : '<p class="dang-tai">Level này chưa có project nào.</p>';
+      const loi = trangThai.loiLevel.get(mot.level.id);
+      let than;
+      if (nhom.length > 0) than = `<div class="bang-hang">${nhom.map(veMotHang).join('')}</div>${conLai}`;
+      // Lượt gọi hỏng thì nói đúng là hỏng. Ghi "chưa có project nào" là nói sai
+      // về kho, và người dùng không biết rằng tải lại trang là thấy lại.
+      else if (loi) than = dongLoi(loi);
+      else than = '<p class="dang-tai">Level này chưa có project nào.</p>';
 
       return (
-        `<section class="doan-level" data-level="${mot.level.id}" style="${bienMau(mot.level.id)}">` +
-        '<div class="doan-dau hien-dan">' +
+        `<section class="doan-level" data-level="${mot.level.id}">` +
+        '<div class="doan-dau">' +
         `<span class="doan-so">${mot.level.id}</span>` +
         `<h3 class="doan-ten">${chu(tenLevel(mot.level))}</h3>` +
         `<span class="doan-dem">${mot.projects} project</span>` +
         '</div>' +
-        `<p class="doan-mo hien-dan">${chu(mot.level.description)}</p>` +
+        `<p class="doan-mo">${chu(mot.level.description)}</p>` +
         than +
         '</section>'
       );
     })
     .join('');
-  theoDoiHienDan();
 }
 
 /* Phần tải dữ liệu. */
@@ -184,6 +174,11 @@ function veCotNoiDung() {
  * Sáu lượt gọi chạy song song, mỗi lượt lấy đúng sáu bản ghi. Cách này giữ cho
  * khối lượng dữ liệu tải về không tăng theo kích thước kho: kho có 200 hay 2000
  * project thì trang chủ vẫn chỉ tải 36 bản ghi.
+ *
+ * Cách xếp 'level' của backend là level tăng dần rồi số giờ tăng dần, nên sáu
+ * bản ghi của mỗi level là sáu project ít giờ nhất của level đó. Dòng chú thích
+ * dưới khung video dựa vào đúng điều này để nói "ít giờ nhất trong level", xem
+ * js/chu-thich-video.js; đổi cách xếp ở đây thì phải sửa câu chữ ở đó.
  */
 async function napProject() {
   const cacLevel = trangThai.thongKe.by_level.map((mot) => mot.level.id);
@@ -192,13 +187,22 @@ async function napProject() {
       apiCatalog
         .trangProject({ level: maLevel, sort: 'level', page: 1, page_size: MOI_LEVEL })
         .then((trang) => trang.items)
-        .catch(() => [])
+        .catch((loi) => ({ loi: loi instanceof LoiApi ? loi.message : 'Không tải được project của level này.' }))
     )
   );
 
-  trangThai.theoLevel = new Map(cacLevel.map((maLevel, chiSo) => [maLevel, ketQua[chiSo]]));
+  // Phản hồi thiếu trường items thì coi như level trống, không phải lỗi.
+  trangThai.theoLevel = new Map(
+    cacLevel.map((maLevel, chiSo) => [maLevel, Array.isArray(ketQua[chiSo]) ? ketQua[chiSo] : []])
+  );
+  trangThai.loiLevel = new Map(
+    cacLevel.flatMap((maLevel, chiSo) => (ketQua[chiSo]?.loi ? [[maLevel, ketQua[chiSo].loi]] : []))
+  );
   veCotNoiDung();
   veMucLuc();
+  // Báo cho phần khác dữ liệu đã có, kèm luôn dữ liệu, để không phần nào phải
+  // gọi lại đúng những lượt vừa gọi.
+  phat(SU_KIEN.KHO_DA_NAP, { thongKe: trangThai.thongKe, theoLevel: trangThai.theoLevel });
 }
 
 /** Tải số liệu tổng quan rồi tải project. Gọi một lần khi mở trang. */
@@ -207,15 +211,20 @@ export async function nap() {
     trangThai.thongKe = await apiCatalog.thongKe();
   } catch (loi) {
     const cau = loi instanceof LoiApi ? loi.message : 'Không tải được số liệu của kho project.';
-    $('#cot-noi-dung').innerHTML = dongTrong(cau);
-    $('#tieu-de-so').textContent = 'Chưa tải được dữ liệu.';
+    $('#cot-noi-dung').innerHTML = dongLoi(cau);
+    // Phần mở đầu không được giữ con số viết sẵn trong HTML mà API chưa xác nhận,
+    // cũng không chèn câu báo lỗi vào giữa tiêu đề: cụm số liệu trong tiêu đề ẩn
+    // đi, tiêu đề còn "Sáu level. Bắt đầu từ chỗ vừa sức."; đoạn dẫn chỉ có câu số
+    // liệu nên ẩn cả đoạn. Tuyến sáu ga chưa có ga nào nên ẩn hẳn, thay vì để đường
+    // tuyến vẽ ra một vạch trắng trơ trọi. Câu báo lỗi đã có ở thông báo và ở đoạn kho.
+    for (const o of document.querySelectorAll('[data-can-so-lieu]')) o.hidden = true;
+    $('#hinh-level').hidden = true;
     thongBao(cau, 'loi');
     return false;
   }
 
   veSoLieu();
   veHinhLevel();
-  veDaiChay();
   await napProject();
   return true;
 }
@@ -231,19 +240,29 @@ export function veLaiTienDo() {
 export function khoiTao() {
   $('#cot-noi-dung').addEventListener('click', (sk) => {
     const hang = sk.target.closest('.hang');
-    if (hang) moProject(hang.dataset.slug);
+    if (hang) moProject(hang.dataset.slug, hang);
   });
 
-  $('#muc-luc-level').addEventListener('click', (sk) => {
-    const nut = sk.target.closest('.muc-nut');
+  // Hai mục lục, một ở phần mở đầu và một ở cột trái, cùng cuộn tới đoạn level.
+  const cuonToiLevel = (sk) => {
+    const nut = sk.target.closest('[data-level]');
     if (!nut) return;
-    const dich = $(`.doan-level[data-level="${nut.dataset.level}"]`);
-    if (dich) window.scrollTo({ top: dich.getBoundingClientRect().top + window.scrollY - 92 });
-  });
+    $(`.doan-level[data-level="${nut.dataset.level}"]`)?.scrollIntoView({ block: 'start' });
+  };
+  $('#muc-luc-level').addEventListener('click', cuonToiLevel);
+  $('#hinh-level').addEventListener('click', cuonToiLevel);
 
+  // Project vừa sức: chưa đăng nhập thì hai level đầu, vì người mới không nên
+  // rơi ngay vào một project 50 giờ của level 5; đã đăng nhập thì backend chọn
+  // theo tiến độ (chưa xong, đã mở khoá, không cao quá một level). Lượt bấm sau
+  // mà trúng lại project vừa chọn thì gọi thêm một lần.
+  let slugVuaChon = null;
   $('#nut-ngau-nhien').addEventListener('click', async () => {
+    const thamSo = phien.daDangNhap ? {} : { level: [0, 1] };
     try {
-      const project = await apiCatalog.projectNgauNhien();
+      let project = await apiCatalog.projectNgauNhien(thamSo);
+      if (project.slug === slugVuaChon) project = await apiCatalog.projectNgauNhien(thamSo);
+      slugVuaChon = project.slug;
       moProject(project.slug);
     } catch (loi) {
       thongBao(loi instanceof LoiApi ? loi.message : 'Không chọn được project.', 'loi');

@@ -57,7 +57,14 @@ def create_access_token(user_id: int, ttl: timedelta | None = None) -> tuple[str
 def decode_access_token(token: str) -> int | None:
     """Đọc token và trả về id người dùng. Trả về None nếu token không hợp lệ."""
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+        # Token phải có hạn dùng. Thư viện chỉ kiểm tra exp khi trường đó có mặt,
+        # nên một token ký đúng mà bỏ trống exp sẽ sống mãi nếu không bắt buộc.
+        payload = jwt.decode(
+            token,
+            settings.secret_key,
+            algorithms=[settings.jwt_algorithm],
+            options={"require": ["exp", "sub"]},
+        )
         return int(payload["sub"])
     except (jwt.InvalidTokenError, KeyError, TypeError, ValueError):
         return None

@@ -47,7 +47,16 @@ Các phiên bản dưới đây đã được ghim và đã chạy qua toàn b�
 
 ## 2. Cài đặt
 
-Mở PowerShell tại thư mục `backend` rồi chạy bốn lệnh sau:
+Trên Linux hoặc macOS, mở terminal tại thư mục `backend` rồi chạy một lệnh:
+
+```bash
+./dev.sh setup
+```
+
+Lệnh này tạo môi trường ảo `.venv`, cài thư viện trong `requirements-dev.txt`,
+rồi tạo file `.env` kèm một khoá ký ngẫu nhiên.
+
+Trên Windows, mở PowerShell tại thư mục `backend` rồi chạy bốn lệnh sau:
 
 ```powershell
 python -m venv .venv
@@ -64,6 +73,14 @@ tiếp, để người mới tải mã nguồn về vẫn thử được ngay.
 
 ## 3. Nạp dữ liệu mẫu
 
+Trên Linux hoặc macOS:
+
+```bash
+./dev.sh seed "matkhau-quan-tri"
+```
+
+Trên Windows:
+
 ```powershell
 .\.venv\Scripts\python.exe -m app.seed --admin-password "matkhau-quan-tri"
 ```
@@ -75,17 +92,96 @@ chưa có thì tạo mới, không bao giờ tạo bản sao.
 Tham số `--admin-password` tạo tài khoản giảng viên tên `admin` để có người chấm
 bài ngay từ đầu. Bỏ tham số này thì không tài khoản nào được tạo.
 
+## 3b. Bộ tài khoản dùng để trình bày
+
+Nền tảng chặn việc tự chấm bài của mình, nên muốn xem trọn vòng nộp bài và chấm
+bài thì phải có ít nhất hai tài khoản khác nhau. Chương trình dưới đây dựng sẵn
+một bộ tài khoản đủ để đi hết mọi màn hình mà không phải tự đăng ký từng cái:
+
+```bash
+.venv/bin/python -m app.tai_khoan_demo tao       # tạo bộ tài khoản kèm dữ liệu mẫu
+.venv/bin/python -m app.tai_khoan_demo liet-ke   # liệt kê tài khoản đang có
+.venv/bin/python -m app.tai_khoan_demo xoa       # xoá bộ tài khoản này và dữ liệu của nó
+```
+
+Cả bộ dùng chung một mật khẩu là `matkhau12345`. Ô đăng nhập nhận cả username
+lẫn thư điện tử; thư điện tử theo mẫu `username@ptit.edu.vn` với giảng viên và
+`username@stu.ptit.edu.vn` với sinh viên.
+
+Mật khẩu này là công khai, nên bộ tài khoản chỉ dành cho máy phát triển và máy
+trình bày, không bao giờ dựng lên cơ sở dữ liệu thật: bốn tài khoản giảng viên
+chấm được bài, ai biết mật khẩu cũng chấm được. Khi `DEBUG=false`, lệnh `tao` từ
+chối chạy trừ khi kèm cờ `--toi-hieu-day-la-db-that`. Nếu lỡ dựng lên bản thật thì
+chạy `xoa`, rồi đổi `SECRET_KEY` và chạy lại dịch vụ để mọi token đã cấp cho
+những tài khoản đó hết hiệu lực.
+
+Bốn tài khoản giảng viên, đều chấm được bài:
+
+| Username | Tên hiển thị |
+|---|---|
+| `congtt` | Cong Tran |
+| `giangvien1` | Giảng viên 1 |
+| `giangvien2` | Giảng viên 2 |
+| `giangvien3` | Giảng viên 3 |
+
+Bảy tài khoản sinh viên, tiến độ giảm dần để bảng xếp hạng có thứ hạng thật:
+
+| Username | Tên hiển thị | Tiến độ |
+|---|---|---|
+| `ngocanh` | Trần Ngọc Anh | 820 điểm, 8 project |
+| `minhduc` | Lê Minh Đức | 520 điểm, 5 project |
+| `thuhien` | Phạm Thu Hiền | 410 điểm, 4 project |
+| `quanghuy` | Nguyễn Quang Huy | 300 điểm, 3 project |
+| `khanhlinh` | Vũ Khánh Linh | 200 điểm, 2 project |
+| `tuananh` | Đỗ Tuấn Anh | 100 điểm, 1 project |
+| `sinhvien` | Nguyễn Văn Nam | chưa có điểm, có 2 bài đang chờ chấm |
+
+Số điểm phụ thuộc vào project nào được gán, nên nó do chương trình tính chứ
+không viết cứng. Hai bài chờ chấm của `sinhvien` để màn hình chấm bài không
+trống khi người thử mở nó ra lần đầu, và cố ý không do tài khoản nào trong bộ
+chấm sẵn.
+
+Tài khoản `admin` do lệnh nạp dữ liệu mẫu tạo ra với mật khẩu riêng, không nằm
+trong bộ này: lệnh `tao` không đặt lại mật khẩu của nó và lệnh `xoa` không đụng
+tới nó.
+
+Lệnh `tao` chạy lại nhiều lần vẫn cho cùng một kết quả: dữ liệu cũ của chính
+những tài khoản này được dọn trước rồi mới dựng lại, nên số bài nộp không cộng
+dồn thêm sau mỗi lần chạy. Nhờ vậy sau một buổi trình bày chỉ cần chạy lại lệnh
+đó là mọi thứ về đúng trạng thái ban đầu. Bài mẫu đã chấm mang đủ người chấm và
+thời điểm chấm, như bài chấm qua API.
+
+Cả hai lệnh chỉ đụng tới đúng những tài khoản mang thư điện tử của bộ. Tài khoản
+do người khác tự đăng ký không bị ảnh hưởng, kể cả khi trùng username với một
+tài khoản trong bảng: khi đó `tao` giữ nguyên tài khoản thật, bỏ qua tên đó và
+in một dòng cảnh báo, còn `xoa` không xoá nó.
+
 ## 4. Chạy backend
+
+Trên Linux hoặc macOS:
+
+```bash
+./dev.sh run
+```
+
+Trên Windows:
 
 ```powershell
 .\dev.cmd run
 ```
 
-`dev.cmd` là lớp bao ngoài của `dev.ps1`. Windows mặc định chặn chạy file `.ps1`
-cục bộ nên gọi qua `dev.cmd` để không phải đổi cài đặt của máy. Các lệnh khác:
-`dev.cmd seed`, `dev.cmd test`, `dev.cmd lint`, `dev.cmd format`.
+Hai file này là hai bản của cùng một tập lệnh, viết cho hai họ hệ điều hành.
+`dev.cmd` là lớp bao ngoài của `dev.ps1`; Windows mặc định chặn chạy file `.ps1`
+cục bộ nên gọi qua `dev.cmd` để không phải đổi cài đặt của máy. Cả hai bản nhận
+cùng một bộ lệnh: `run`, `seed`, `test`, `lint`, `format`. Riêng bản `dev.sh` có
+thêm lệnh `setup` vì việc dựng môi trường trên Linux và macOS gói gọn được trong
+một lệnh.
 
 Hoặc gọi trực tiếp:
+
+```bash
+.venv/bin/python -m app --reload
+```
 
 ```powershell
 .\.venv\Scripts\python.exe -m app --reload
@@ -107,24 +203,139 @@ Với cấu hình mặc định:
 Cổng 8421 được chọn vì các cổng thông dụng như 8000, 8080 và 5000 hay bị project
 khác chiếm.
 
+### Chạy nền bằng systemd trên Linux
+
+Cách chạy ở trên gắn máy chủ vào phiên đăng nhập đang gõ lệnh. Trên Linux,
+systemd xếp mọi tiến trình của một phiên đăng nhập vào chung một nhóm tên
+`session-....scope`, và tắt cả nhóm ngay khi phiên đó đóng lại. Hậu quả là máy
+chủ chết theo lúc người dùng ngắt kết nối, kể cả khi nó đang chạy trong tmux, vì
+bản thân tmux cũng nằm trong nhóm đó.
+
+Tập lệnh `dich-vu.sh` giải quyết việc này bằng cách cài máy chủ thành một dịch
+vụ của systemd:
+
+```bash
+./dich-vu.sh cai
+```
+
+Lệnh này làm ba việc: bật linger cho tài khoản để systemd giữ lại tiến trình sau
+khi phiên đăng nhập cuối cùng đóng, sinh file mô tả dịch vụ trong
+`~/.config/systemd/user/`, rồi bật và chạy dịch vụ. Máy chủ khi đó nằm dưới
+`user@.service` chứ không nằm trong phiên đăng nhập nào.
+
+Ba tính chất có thêm so với cách chạy trong tmux:
+
+| Tính chất | Cách thực hiện |
+|---|---|
+| Sống sót khi ngắt kết nối | linger cộng với việc dịch vụ nằm ngoài phiên đăng nhập |
+| Tự chạy lại khi tiến trình chết | `Restart=always`, chờ 3 giây giữa hai lần |
+| Tự chạy khi máy khởi động lại | `WantedBy=default.target` |
+
+Chết quá 5 lần trong 60 giây thì systemd dừng hẳn, để một lỗi cấu hình không
+biến thành vòng lặp chạy lại vô tận.
+
+Các lệnh còn lại:
+
+| Lệnh | Việc |
+|---|---|
+| `./dich-vu.sh trang-thai` | xem dịch vụ còn sống không |
+| `./dich-vu.sh nhat-ky` | xem nhật ký, bám theo dòng mới |
+| `./dich-vu.sh chay-lai` | chạy lại dịch vụ sau khi sửa mã nguồn |
+| `./dich-vu.sh tmux` | mở phiên tmux bám theo nhật ký, cũng nằm ngoài phiên đăng nhập |
+| `./dich-vu.sh go` | dừng hẳn và gỡ dịch vụ |
+
+Lệnh `tmux` mở một phiên tmux qua `systemd-run --user --scope`. Mở tmux theo cách
+thông thường thì nó lại rơi vào `session-....scope` và chết khi ngắt kết nối,
+đúng vấn đề vừa nói ở trên.
+
+### Đưa nền tảng ra một tên miền
+
+Nền tảng chạy được ở hai chỗ: ngay tại gốc tên miền, và dưới một tiền tố đường
+dẫn, ví dụ `https://ptitai.org/projects/`. Tập lệnh `ten-mien.sh` lo kiểu thứ hai,
+theo ba bước:
+
+```bash
+./ten-mien.sh bat-tien-to     # đặt ROOT_PATH=/projects rồi chạy lại dịch vụ
+sudo ./ten-mien.sh cai        # thêm cấu hình nginx rồi nạp lại nginx
+./ten-mien.sh kiem-tra        # thử địa chỉ công khai
+```
+
+Gỡ ra thì làm ngược lại:
+
+```bash
+sudo ./ten-mien.sh hoan-tac   # gỡ cấu hình nginx
+./ten-mien.sh tat-tien-to     # xoá ROOT_PATH rồi chạy lại dịch vụ
+```
+
+Xem trước phần sẽ được thêm vào nginx mà không đổi gì: `./ten-mien.sh xem`.
+
+Cấu hình sinh ra nhận cả ba cách gõ địa chỉ. Dạng số ít `/project` và dạng thiếu
+dấu gạch chéo cuối `/projects` đều được chuyển về `/projects/`, vì người gõ tay
+rất dễ quên chữ s hoặc quên dấu gạch chéo, và khi đó yêu cầu rơi vào khối
+`location /` rồi nhận trang báo lỗi của một project khác.
+
+Backend và nginx phải khớp nhau về tiền tố. Trong cấu hình do `ten-mien.sh` sinh
+ra, chỉ thị `proxy_pass` cố ý viết không có dấu gạch chéo ở cuối, nên tiền tố
+`/projects` được giữ nguyên khi chuyển yêu cầu xuống và chính backend là nơi cắt
+nó ra. Thêm dấu gạch chéo vào đó mà vẫn để `ROOT_PATH` thì thư mục tài nguyên
+tĩnh trả về 404 trong khi trang HTML và API vẫn chạy, một kiểu hỏng rất khó nhận
+ra. Vì vậy lệnh `cai` đọc `.env` và từ chối chạy khi hai bên chưa khớp, trước cả
+bước hỏi quyền quản trị.
+
+Khi đã đặt `ROOT_PATH`, gọi thẳng vào cổng nội bộ mà không kèm tiền tố sẽ không
+lấy được thư mục tài nguyên tĩnh. Lúc phát triển thì để trống giá trị này, và đó
+cũng là giá trị mặc định.
+
+Về phía giao diện, không có gì phải cấu hình. Module `js/goc.js` tự suy ra gốc
+từ địa chỉ của chính nó qua `import.meta.url`, còn mọi liên kết trong hai trang
+HTML đều là đường dẫn tương đối. Nhờ vậy cùng một bộ mã nguồn chạy đúng ở cả hai
+kiểu triển khai mà không cần dựng lại hay sửa gì.
+
+Tập lệnh được viết theo hướng chạm vào ít nhất có thể, vì máy chủ có thể đang
+chạy nhiều project khác trên cùng một nginx:
+
+| Biện pháp | Tác dụng |
+|---|---|
+| Chỉ thêm hai khối `location` vào đúng một file của tên miền | không đụng file của tên miền khác |
+| Sao lưu file gốc kèm mốc thời gian trước khi sửa | luôn quay lại được |
+| Chạy `nginx -t` trước khi nạp lại | cú pháp sai thì khôi phục ngay, nginx chưa hề được nạp lại |
+| Dùng `reload` chứ không `restart` | các kết nối đang mở không bị đứt |
+| Có lệnh `hoan-tac` | gỡ ra cho lại đúng file ban đầu |
+
 ## 5. Kiểm thử
+
+```bash
+./dev.sh test
+```
 
 ```powershell
 .\dev.cmd test
 ```
 
-84 bài kiểm thử, chạy trên một file cơ sở dữ liệu tạm nên không đụng vào dữ liệu
-thật trong `data/`. Bộ kiểm thử chia theo năm nhóm việc:
+370 bài kiểm thử, chạy trên một file cơ sở dữ liệu tạm và một thư mục ảnh đại
+diện tạm nên không đụng vào dữ liệu thật trong `data/`. Bộ kiểm thử gồm năm nhóm
+việc ban đầu cùng bốn file thêm sau đợt kiểm thử kt6:
 
 | File | Số bài | Phạm vi |
 |---|---|---|
 | `tests/test_auth.py` | 19 | đăng ký, đăng nhập, chuẩn hoá username và tên hiển thị, giới hạn mật khẩu và thư điện tử, ảnh đại diện, chặn dò mật khẩu |
-| `tests/test_catalog.py` | 22 | lọc, tìm kiếm không dấu, sắp xếp theo bảng chữ cái tiếng Việt, gợi ý theo tầng, project chưa xuất bản, số liệu tổng quan, khoảng thời gian đảo ngược và trần số giờ |
+| `tests/test_catalog.py` | 22 | lọc, tìm kiếm không dấu và giữ dấu, sắp xếp theo bảng chữ cái tiếng Việt, gợi ý theo tầng, project chưa xuất bản, số liệu tổng quan, khoảng thời gian đảo ngược và trần số giờ |
 | `tests/test_progress.py` | 22 | nộp bài, chấm bài, điểm tích luỹ, badge, đề xuất, bảng xếp hạng, danh sách bài nộp và quy tắc không tự chấm bài |
-| `tests/test_api_contract.py` | 14 | cấu trúc lỗi, múi giờ, giới hạn phân trang, thư mục tĩnh và route của API, tiêu đề bộ nhớ đệm |
+| `tests/test_api_contract.py` | 17 | cấu trúc lỗi, múi giờ, giới hạn phân trang, thư mục tĩnh và route của API, tiêu đề bộ nhớ đệm, tiền tố đường dẫn |
 | `tests/test_seed.py` | 7 | số bản ghi, tính lặp lại được, độ phủ level và track, đồ thị tiên quyết, khuôn của bảy file dữ liệu |
+| `tests/test_kt_kho.py` | 170 | hợp đồng phần chỉ-đọc của kho: phân trang, sắp xếp, bộ lọc, tìm kiếm, gợi ý, HEAD, 304, Range, tiêu đề bảo mật, trang 404 |
+| `tests/test_kt_nop_cham.py` | 59 | nộp bài và chấm bài dưới góc "phi logic": quyền, chạy đua, điểm, badge, đề xuất |
+| `tests/test_kt_tai_khoan.py` | 24 | tài khoản bị vô hiệu hoá, biên của token, khoá theo tài khoản, thời gian trả lời đều nhau |
+| `tests/test_sua_kt6.py` | 19 | các sửa đổi sau đợt kt6: bể kết nối, lỗi 500 tiếng Việt, thư mục ảnh riêng, ảnh quá lớn, token thiếu hạn, bộ tài khoản demo |
+| `tests/test_ux_sua.py` | 11 | các sửa đổi sau vòng thử với người dùng thật: tìm kiếm giữ dấu và khớp đầu từ (cả tên track, skill), tiên quyết trong danh sách, chọn ngẫu nhiên project vừa sức, nhận xét bắt buộc khi bài không đạt, hàng đợi chấm bài kèm lần nộp và lần chấm trước |
 
-Kiểm tra chất lượng mã nguồn và định dạng lại mã nguồn:
+Kiểm tra chất lượng mã nguồn (gồm cả kiểm tra định dạng, nên mã chưa qua
+`format` sẽ không lọt qua `lint`) và định dạng lại mã nguồn:
+
+```bash
+./dev.sh lint
+./dev.sh format
+```
 
 ```powershell
 .\dev.cmd lint
@@ -147,6 +358,10 @@ backend/
 │  └─ __main__.py     điểm khởi động máy chủ
 ├─ tests/             kiểm thử
 ├─ data/              file cơ sở dữ liệu SQLite
+├─ dev.sh             tập lệnh phát triển cho Linux và macOS
+├─ dev.ps1, dev.cmd   tập lệnh phát triển cho Windows
+├─ dich-vu.sh         cài và điều khiển dịch vụ systemd trên Linux
+├─ ten-mien.sh        đưa nền tảng ra một tên miền qua nginx
 └─ .venv/             môi trường Python riêng của backend
 ```
 
@@ -200,7 +415,7 @@ Tất cả đường dẫn dưới đây đứng sau tiền tố `/api/v1`, tổ
 | GET | `/mentors` | 4 giảng viên phụ trách |
 | GET | `/skills` | toàn bộ skill, dùng cho bộ lọc |
 | GET | `/projects` | danh sách project, có lọc, tìm kiếm, sắp xếp, phân trang |
-| GET | `/projects/random` | chọn ngẫu nhiên một project |
+| GET | `/projects/random` | chọn ngẫu nhiên một project; gọi kèm token thì chỉ chọn project vừa sức: chưa hoàn thành, đã mở khoá, không cao hơn một level so với level cao nhất đã hoàn thành |
 | GET | `/projects/{slug}` | chi tiết một project |
 | GET | `/projects/{slug}/hints` | gợi ý, cắt theo tầng |
 | GET | `/roadmaps` | danh sách lộ trình |
@@ -211,8 +426,8 @@ Tất cả đường dẫn dưới đây đứng sau tiền tố `/api/v1`, tổ
 | Phương thức | Đường dẫn | Mô tả |
 |---|---|---|
 | POST | `/projects/{slug}/submissions` | nộp bài |
-| GET | `/submissions` | danh sách bài nộp của mọi người dùng, chỉ tài khoản giảng viên |
-| PATCH | `/submissions/{submission_id}/review` | chấm bài, chỉ tài khoản giảng viên |
+| GET | `/submissions` | danh sách bài nộp của mọi người dùng, chỉ tài khoản giảng viên; mỗi bài kèm `attempt` (lần nộp thứ mấy) và `previous_review` (lần chấm gần nhất trước đó của cùng người cho cùng project, hoặc null) |
+| PATCH | `/submissions/{submission_id}/review` | chấm bài, chỉ tài khoản giảng viên; kết quả cần sửa lại hoặc chưa đạt phải kèm nhận xét, thiếu thì 422 |
 | GET | `/me/progress` | tổng hợp tiến độ |
 | GET | `/me/submissions` | bài nộp của chính mình |
 | GET | `/me/badges` | badge đã đạt |
@@ -259,6 +474,13 @@ của cùng một người, cùng một project.
 Bài đã có kết quả thì khác: bài bị trả về hay chưa đạt được nộp lại thành một bài
 mới, còn project đã đạt thì không nhận thêm bài nộp nào nữa.
 
+Việc ghi đè cũng đi qua một câu `UPDATE` mang điều kiện "đang chờ chấm", giống
+cách chấm bài ở mục dưới: giảng viên vừa chấm xong đúng lúc người học bấm nộp lại
+thì bản đã chấm giữ nguyên ruột, và lượt nộp lại nhận 409 nếu bài đã đạt hoặc
+thành một bài mới nếu bài bị trả về. Cả chuỗi tìm-rồi-ghi của một lượt nộp được
+xếp hàng sau một khoá trong tiến trình, nên hai lượt nộp song song của cùng một
+người cho cùng một project không bao giờ sinh hai bản ghi chờ chấm.
+
 ### Ai được chấm bài
 
 Chấm bài là việc của giảng viên. Cột `is_mentor` trong bảng `user` quyết định
@@ -286,12 +508,19 @@ của lượt trước.
 
 ### Chặn dò mật khẩu
 
-Sai quá tám lần trong năm phút thì cặp tên đăng nhập và địa chỉ máy gọi bị tạm
-dừng năm phút, kể cả khi lần thử tiếp theo dùng đúng mật khẩu. Không có chốt này
-thì một chương trình dò mật khẩu thử được khoảng năm lần mỗi giây mà không gặp
-trở ngại nào. Bộ đếm nằm trong bộ nhớ của tiến trình, xem
+Sai quá tám lần trong năm phút thì cặp tài khoản và địa chỉ máy gọi bị tạm
+dừng năm phút, kể cả khi lần thử tiếp theo dùng đúng mật khẩu. Bộ đếm tính theo
+tài khoản chứ không theo chuỗi gõ vào: khoá xong username thì thư điện tử của
+cùng tài khoản cũng bị khoá theo, nếu không hạn mức đoán tăng gấp đôi. Chuỗi
+không khớp tài khoản nào thì đếm theo chính chuỗi đó. Không có chốt này thì một
+chương trình dò mật khẩu thử được khoảng năm lần mỗi giây mà không gặp trở ngại
+nào. Bộ đếm nằm trong bộ nhớ của tiến trình, xem
 `app/services/chan_doan_mat_khau.py`; chạy nhiều tiến trình song song thì phải
 chuyển phần này sang một kho dùng chung.
+
+Tài khoản không tồn tại vẫn được so mật khẩu với một chuỗi băm giả, để thời gian
+trả lời không khác với tài khoản có thật sai mật khẩu; câu báo lỗi giống nhau mà
+thời gian khác nhau thì người ngoài vẫn đoán được tài khoản nào đang có.
 
 ### Bảng xếp hạng
 
@@ -410,7 +639,7 @@ nguyên tắc project tiên quyết không được ở level cao hơn project p
 
 ## 12. Cách backend ghép với frontend
 
-Backend phục vụ luôn thư mục `../frontend`. Chạy `dev.cmd run` rồi mở
+Backend phục vụ luôn thư mục `../frontend`. Chạy `./dev.sh run` hoặc `dev.cmd run` rồi mở
 `http://127.0.0.1:8421` là thấy giao diện; API vẫn nằm ở `/api/v1` và tài liệu
 API vẫn ở `/docs`.
 
@@ -421,6 +650,29 @@ Chỉ ba thư mục đó ra ngoài, nên những tệp nằm cạnh `index.html`
 Để trống biến này thì backend chỉ phục vụ API và địa chỉ gốc chuyển hướng sang
 trang tài liệu API. Không tìm thấy thư mục thì backend vẫn khởi động bình thường,
 chỉ ghi một dòng nhật ký.
+
+Ảnh đại diện do người dùng tải lên được phục vụ ở `/anh-dai-dien`, từ thư mục
+trong biến `AVATAR_DIR`, mặc định là `data/anh-dai-dien` tính từ thư mục backend.
+Bộ kiểm thử và mọi máy chủ chạy thử phải trỏ biến này sang một thư mục riêng, vì
+tệp ảnh chỉ được nhận ra theo mã người dùng: dùng chung thư mục với bản thật thì
+một bài kiểm thử tải ảnh lên rồi xoá sẽ xoá luôn ảnh của người dùng thật có cùng
+mã. `tests/conftest.py` đã tự đặt biến này.
+
+Hai trang HTML và mọi tệp tĩnh đều mang `Cache-Control: no-cache` kèm `ETag` và
+`Last-Modified`, và trả về 304 khi trình duyệt hỏi lại mà tệp chưa đổi. Mọi địa
+chỉ nhận GET đều nhận cả HEAD, để công cụ giám sát dùng HEAD không báo nhầm là
+nền tảng sập. Người mở một địa chỉ không có trên trình duyệt, ví dụ `/kho`, nhận
+một trang HTML nhỏ có đường về trang chủ; các client khác vẫn nhận JSON.
+
+Mọi phản hồi mang ba tiêu đề bảo mật: `X-Content-Type-Options: nosniff`,
+`X-Frame-Options: SAMEORIGIN` và `Referrer-Policy: strict-origin-when-cross-origin`.
+`Content-Security-Policy` cố ý đặt ở nginx chứ không ở backend (xem
+`ten-mien.sh`): chính sách chỉ cho nạp mã và tài nguyên từ chính nền tảng
+(`style-src` cho phép kiểu nội tuyến, vì giao diện đặt biến CSS ngay trong thuộc
+tính `style` của từng dòng), trang `/docs` nạp Swagger UI từ CDN nên có khối
+riêng không mang chính sách đó, và các bộ kiểm thử trình duyệt chạy thẳng vào
+cổng nội bộ phải đánh giá mã ngay trong trang, thứ mà `script-src` chặn. HSTS
+thuộc về khối server của nginx, không đặt ở đây.
 
 Vì giao diện và API cùng một origin nên trình duyệt không phải kiểm tra CORS, và
 giao diện gọi API bằng đường dẫn tương đối `/api/v1`, đổi cổng cũng không phải
@@ -525,11 +777,21 @@ và dấu phụ theo dạng chuẩn NFD, mọi dấu phụ bị bỏ, riêng ch�
 vì trong bảng mã nó là một chữ cái riêng chứ không phải chữ d mang dấu.
 
 Hàm này phục vụ hai việc. Thứ nhất, ô tìm kiếm so khớp trên chuỗi đã bỏ dấu ở cả
-hai phía, nên gõ "nhan dang" vẫn ra project tên "Nhận dạng chữ số viết tay" —
-điều đáng kể với người gõ nhanh và với bàn phím không có bộ gõ tiếng Việt. Thứ
-hai, cách sắp xếp theo tên project cũng dùng khoá đã bỏ dấu; nếu so sánh thẳng
-trên chuỗi gốc thì thứ tự đi theo vị trí ký tự trong bảng mã Unicode, và mọi tên
-bắt đầu bằng chữ có dấu bị đẩy xuống sau chữ Z.
+hai phía khi từ khoá không có dấu, nên gõ "nhan dang" vẫn ra project tên "Nhận
+dạng chữ số viết tay" — điều đáng kể với người gõ nhanh và với bàn phím không có
+bộ gõ tiếng Việt. Từ khoá có dấu thì so khớp giữ dấu: người đã gõ "ảnh" là muốn
+"ảnh", không phải "thành" hay "hành". Thứ hai, cách sắp xếp theo tên project
+cũng dùng khoá đã bỏ dấu; nếu so sánh thẳng trên chuỗi gốc thì thứ tự đi theo vị
+trí ký tự trong bảng mã Unicode, và mọi tên bắt đầu bằng chữ có dấu bị đẩy xuống
+sau chữ Z.
+
+Cùng chỗ đó còn một hàm `khop_tu`: từ khoá chỉ khớp khi đứng ở đầu một từ của
+tiêu đề, tóm tắt, tên track hay tên skill (`_dieu_kien_khop` trong
+`app/services/catalog.py`). Không có ràng buộc này, `LIKE '%anh%'` khớp cả
+"thành" và "hành", và "ảnh" ra gần nửa kho. Gõ tên một track, ví dụ "python", ra
+mọi project của track ấy. Khi có từ khoá, project khớp ở tiêu đề đứng trước
+project chỉ khớp ở phần còn lại. Cơ sở dữ liệu khác SQLite không có hai hàm này
+nên chỉ hạ chữ hoa và khớp chuỗi con.
 
 ### Ảnh đại diện đổi tên tệp theo mỗi lần tải lên
 
@@ -549,6 +811,21 @@ Khai báo trong `app/db/session.py`: bật kiểm tra khoá ngoại vì SQLite m
 qua, bật chế độ WAL để đọc song song với ghi, đặt mức đồng bộ vừa phải để giảm số
 lần ghi đĩa, và đặt thời gian chờ 5 giây thay vì báo lỗi ngay khi cơ sở dữ liệu
 đang bận.
+
+### Bể kết nối không có trần
+
+FastAPI chạy endpoint đồng bộ trên một nhóm 40 luồng, và mỗi request đi qua
+nhóm đó hai lượt: chạy endpoint, rồi kiểm tra phản hồi theo `response_model`;
+session giữ kết nối suốt cả hai lượt. Với bể kết nối có trần cố định (mặc định
+là 5 cộng 10 dôi) hai tài nguyên này chờ nhau vòng tròn khi request dồn: 40
+luồng đứng chờ kết nối, trong khi mọi kết nối nằm trong tay những request đang
+chờ một luồng để kiểm tra phản hồi. Cả backend đơ 30 giây rồi trả về lỗi 500
+hàng loạt, tái hiện được từ khoảng 50 request song song. `app/db/session.py` vì
+thế đặt bể 40 kết nối và không giới hạn phần dôi: kết nối thứ 41 trở đi mở khi
+cần và đóng khi trả về, còn 40 kết nối đầu sống lâu. Không dùng `NullPool` (mỗi
+session một kết nối mới) vì mở và đóng kết nối SQLite liên tục từ nhiều luồng
+đã làm backend đơ hẳn trong lúc kiểm thử, mọi luồng đứng trong `sqlite3.connect()`
+hoặc `close()`.
 
 ### Mọi cột thời gian dùng chung một kiểu tự quy về UTC
 
@@ -602,10 +879,12 @@ Tập project chỉ vài trăm bản ghi nên nạp một lần rồi tính đi�
 hơn và dễ sửa hơn nhiều so với dựng một câu lệnh SQL phức tạp cho công thức tính
 điểm.
 
-### Gợi ý theo tầng bị cắt ở phía backend
+### Gợi ý là công khai, tầng cao nhất do người gọi chọn
 
-Endpoint `/projects/{slug}/hints` chỉ trả về gợi ý tới đúng tầng được yêu cầu,
-nên người dùng không thể xem hết gợi ý bằng cách sửa giao diện.
+Endpoint `/projects/{slug}/hints` trả về gợi ý tới đúng tầng ghi trong tham số
+`max_tier`, không cần đăng nhập. Việc mở dần từng tầng là cách giao diện dẫn
+người học, không phải một chốt chặn của backend: ai muốn xem cả ba tầng vẫn xem
+được. Muốn chặn thật thì phải lưu tầng đã mở theo từng người dùng.
 
 ### Mật khẩu băm bằng bcrypt, giới hạn 72 byte được kiểm tra tường minh
 
@@ -634,7 +913,12 @@ phải xoá cơ sở dữ liệu mỗi lần sửa.
 Chấm bài đang do người làm. Phần chấm tự động có thể thêm sau vào
 `app/services/progress.py` mà không phải sửa tầng API.
 
-Chưa có giới hạn số lần gọi API. Khi mở ra ngoài mạng cục bộ thì nên thêm.
+Chưa có giới hạn số lần gọi API ngoài phần đăng nhập. Khi mở ra ngoài mạng cục
+bộ thì nên thêm, ví dụ `limit_req` ở khối `location /projects/` của nginx làm
+chốt chặn ngoài cùng. Khối đó đã đặt `client_max_body_size 3m` để thân request
+không vượt xa giới hạn ảnh đại diện 2 MB (backend đã từ chối theo
+`Content-Length` trước khi đọc thân, nhưng nginx vẫn nhận trọn thân rồi mới
+chuyển xuống); sau khi sửa `ten-mien.sh` phải chạy lại nó để nginx nạp cấu hình mới.
 
 Nội dung project mới chỉ có tiếng Việt. Bản giao diện đầu tiên có nút chuyển ngữ
 Việt – Anh nhưng đã bỏ, vì chữ tĩnh dịch được còn nội dung project thì không. Muốn có

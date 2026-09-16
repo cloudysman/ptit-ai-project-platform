@@ -46,20 +46,6 @@ class HintRead(ORMModel):
     content: str
 
 
-class ProjectSummary(ORMModel):
-    """Bản rút gọn của project, dùng cho trang danh sách."""
-
-    id: int
-    slug: str
-    title: str
-    summary: str
-    estimated_hours: int
-    reward_points: int
-    level: LevelRead
-    track: TrackRead
-    skills: list[SkillRead]
-
-
 class ProjectRef(ORMModel):
     """Tham chiếu gọn tới một project.
 
@@ -74,6 +60,25 @@ class ProjectRef(ORMModel):
     reward_points: int
 
 
+class ProjectSummary(ORMModel):
+    """Bản rút gọn của project, dùng cho trang danh sách.
+
+    Danh sách project tiên quyết đi kèm ngay ở bản rút gọn, để dòng project trong
+    kho đánh dấu được project còn khoá mà không phải mở chi tiết từng project.
+    """
+
+    id: int
+    slug: str
+    title: str
+    summary: str
+    estimated_hours: int
+    reward_points: int
+    level: LevelRead
+    track: TrackRead
+    skills: list[SkillRead]
+    prerequisites: list[ProjectRef]
+
+
 class ProjectDetail(ProjectSummary):
     """Bản đầy đủ của project, dùng cho trang chi tiết."""
 
@@ -82,7 +87,6 @@ class ProjectDetail(ProjectSummary):
     dataset_url: str | None
     deliverables: list[str]
     bonus_challenges: list[str]
-    prerequisites: list[ProjectRef]
 
 
 class RoadmapStepRead(ORMModel):

@@ -4,21 +4,23 @@
    là một lượt gọi API với đúng tham số lọc, phân trang và sắp xếp, nên số bản
    ghi tải về không tăng theo kích thước kho. */
 
-import { LoiApi, goi } from './api.js';
+import { LoiApi, apiCatalog } from './api.js';
 import {
   $,
   $$,
   NHAN_TRANG_THAI,
+  bieuTuong,
   chu,
+  dongLoi,
   dongTrong,
+  giamChuyenDong,
   so,
   soGio,
   tenLevel,
-  theoDoiHienDan,
   thongBao,
 } from './giao-dien.js';
 import { moProject } from './project.js';
-import { daHoanThanh, trangThaiCua } from './tien-do.js';
+import { daHoanThanh, oTrangThai, trangThaiCua } from './tien-do.js';
 
 const MOI_TRANG = 20;
 
@@ -32,9 +34,17 @@ const GIO_NHO_NHAT = 1;
 const GIO_LON_NHAT = 1000;
 const TRANG_LON_NHAT = 1000;
 
-/** Giữ lại một số nguyên trong khoảng cho phép, ngoài khoảng thì trả về chuỗi rỗng. */
+/**
+ * Giữ lại một số nguyên trong khoảng cho phép, ngoài khoảng thì trả về chuỗi rỗng.
+ *
+ * Chuỗi rỗng bị loại ngay từ đầu chứ không đưa qua Number, vì Number của một
+ * chuỗi rỗng bằng không chứ không phải NaN. Không chặn thì một địa chỉ dạng
+ * ?level= sẽ lọt qua thành số không, tức thành bộ lọc level 0.
+ */
 function soTrongKhoang(gia, nhoNhat, lonNhat) {
-  const n = Number(String(gia).trim());
+  const chuoi = String(gia).trim();
+  if (chuoi === '') return '';
+  const n = Number(chuoi);
   if (!Number.isInteger(n) || n < nhoNhat || n > lonNhat) return '';
   return String(n);
 }
@@ -50,16 +60,23 @@ const trangThai = {
   trang: 1,
   tong: 0,
   soTrang: 0,
+  // Project của trang đang xem theo slug, để vẽ lại ô trạng thái khi tiến độ đổi
+  // mà không gọi lại API.
+  itemsDangXem: new Map(),
 };
 
 /* Đọc bộ lọc từ địa chỉ trang, để một đường dẫn có thể chia sẻ được. */
 
 function docTuDiaChi() {
   const tham = new URLSearchParams(window.location.search);
+  // Giá trị sai khuôn bị bỏ hẳn chứ không quy về một con số nào. Nếu đổi chuỗi
+  // rỗng mà soTrongKhoang trả về thành số thì nó thành số không, và một địa chỉ
+  // như ?level=abc sẽ lặng lẽ biến thành bộ lọc level 0.
   trangThai.levels = tham
     .getAll('level')
-    .map((mot) => Number(soTrongKhoang(mot, 0, 99)))
-    .filter((n) => Number.isInteger(n));
+    .map((mot) => soTrongKhoang(mot, 0, 99))
+    .filter((chuoiSo) => chuoiSo !== '')
+    .map(Number);
   trangThai.tracks = tham.getAll('track');
   trangThai.tim = (tham.get('q') ?? '').slice(0, TIM_TOI_DA);
   const sapXep = tham.get('sort') ?? 'level';
@@ -105,7 +122,12 @@ function ghiVaoDiaChi(dayVaoLichSu = false) {
   } else {
     window.history.replaceState(null, '', dia);
   }
+  diaChiDaGhi = window.location.search;
 }
+
+// Chuỗi truy vấn mà lần ghi địa chỉ gần nhất để lại, để trình nghe popstate
+// phân biệt mốc bộ lọc với mốc của bảng trượt.
+let diaChiDaGhi = window.location.search;
 
 /* Phần vẽ bộ lọc. */
 
@@ -146,6 +168,24 @@ function veBoLoc() {
   $('#o-sap-xep').value = trangThai.sapXep;
   $('#o-gio-min').value = trangThai.gioMin;
   $('#o-gio-max').value = trangThai.gioMax;
+  // Số điều kiện đang chọn trong phần gấp được, hiện trên dòng "Bộ lọc" của điện thoại.
+  const soDangChon =
+    trangThai.levels.length + trangThai.tracks.length + (trangThai.gioMin ? 1 : 0) + (trangThai.gioMax ? 1 : 0);
+  $('#bo-loc-gon-dem').textContent = soDangChon > 0 ? String(soDangChon) : '';
+}
+
+/* Trên điện thoại, chip level, chip track và ô giờ gấp lại sau dòng "Bộ lọc":
+   mở ra thì danh sách nằm sau cả một màn hình chip. Màn hình rộng luôn mở. */
+const MAN_HINH_HEP = window.matchMedia('(max-width: 640px)');
+
+function datBoLocGon() {
+  const gon = $('#bo-loc-gon');
+  if (!MAN_HINH_HEP.matches) {
+    gon.open = true;
+    return;
+  }
+  // Có điều kiện đang chọn thì để mở, để người dùng thấy mình đang lọc gì.
+  gon.open = trangThai.levels.length + trangThai.tracks.length > 0 || Boolean(trangThai.gioMin || trangThai.gioMax);
 }
 
 /* Phần vẽ danh sách. */
@@ -153,28 +193,34 @@ function veBoLoc() {
 function veMotHang(project) {
   const trangThaiBai = trangThaiCua(project.slug);
   const xong = daHoanThanh(project.slug);
+  const o = oTrangThai(project);
 
   return (
-    `<button type="button" class="hang${xong ? ' da-xong' : ''}" data-slug="${chu(project.slug)}"` +
-    ` style="--mau-level:${mauCuaLevel(project.level.id)};--mau-level-chu:${mauChuCuaLevel(project.level.id)}">` +
-    `<span class="hang-o">${xong ? '✓' : ''}</span>` +
-    `<span class="hang-ten">${chu(project.title)}` +
-    (trangThaiBai && !xong ? `<i class="hang-nhan">${chu(NHAN_TRANG_THAI[trangThaiBai])}</i>` : '') +
+    `<button type="button" class="hang${xong ? ' da-xong' : ''}${o.khoa ? ' bi-khoa' : ''}" data-slug="${chu(project.slug)}">` +
+    `<span class="hang-o" role="img" aria-label="${chu(o.nhan)}" title="${chu(o.nhan)}">${bieuTuong(o.khoa ? 'khoa' : 'tich')}</span>` +
+    `<span class="hang-ten"><span>${chu(project.title)}</span>` +
+    (trangThaiBai && !xong
+      ? `<i class="hang-nhan nhan the-${chu(trangThaiBai)}">${chu(NHAN_TRANG_THAI[trangThaiBai])}</i>`
+      : '') +
     '</span>' +
-    `<span class="hang-level">${chu(project.level.name)}</span>` +
+    '<span class="hang-meta">' +
+    `<span class="hang-level">${chu(tenLevel(project.level))}</span>` +
     `<span class="hang-track">${chu(project.track.name)}</span>` +
     `<span class="hang-gio">${soGio(project.estimated_hours)}</span>` +
-    '<span class="hang-mo">Xem chi tiết →</span>' +
+    '</span>' +
+    `<span class="hang-mo"><span>Xem chi tiết</span>${bieuTuong('mui-ten')}</span>` +
     '</button>'
   );
 }
 
-// Ba chặng của lộ trình, giống hệt cách trang chủ tô màu.
-const MAU_LEVEL = ['#A21C2B', '#A21C2B', '#A21C2B', '#E0A03A', '#E0A03A', '#16130F'];
-const MAU_LEVEL_CHU = ['#A21C2B', '#A21C2B', '#A21C2B', '#8F5E0C', '#8F5E0C', '#16130F'];
-const mauCuaLevel = (maLevel) => MAU_LEVEL[maLevel] ?? '#16130F';
-const mauChuCuaLevel = (maLevel) => MAU_LEVEL_CHU[maLevel] ?? '#16130F';
-
+/**
+ * Vẽ một trang kết quả, và cho các dòng chuyển động tới chỗ mới của chúng.
+ *
+ * Đổi bộ lọc thường chỉ làm vài dòng đổi vị trí, thêm vài dòng và bớt vài dòng.
+ * Nếu vẽ lại toàn bộ thì cả danh sách nháy một cái, người dùng không biết dòng
+ * nào còn, dòng nào mới. Ở đây vị trí của từng dòng được ghi lại trước khi vẽ,
+ * dòng nào vẫn còn thì trượt từ chỗ cũ tới chỗ mới, dòng mới thì hiện dần.
+ */
 function veKetQua(trang) {
   const dau = Math.min((trang.page - 1) * trang.page_size + 1, trang.total);
   const cuoi = Math.min(trang.page * trang.page_size, trang.total);
@@ -183,11 +229,37 @@ function veKetQua(trang) {
       ? 'Không có project nào khớp với bộ lọc.'
       : `Đang xem project ${dau} tới ${cuoi} trong ${so(trang.total)} project khớp bộ lọc.`;
 
-  $('#danh-sach').innerHTML =
+  const danhSach = $('#danh-sach');
+  const viTriCu = new Map(
+    $$('.hang', danhSach).map((hang) => [hang.dataset.slug, hang.getBoundingClientRect().top])
+  );
+
+  trangThai.itemsDangXem = new Map(trang.items.map((mot) => [mot.slug, mot]));
+  // Lớp giữ chỗ chỉ dành cho lúc chưa có gì; kết quả rỗng thì để hộp thấp.
+  danhSach.classList.remove('dang-cho');
+  danhSach.innerHTML =
     trang.items.length > 0
       ? trang.items.map(veMotHang).join('')
       : dongTrong('Bỏ bớt một vài điều kiện lọc rồi thử lại.');
-  theoDoiHienDan();
+
+  if (giamChuyenDong() || typeof Element.prototype.animate !== 'function') return;
+
+  $$('.hang', danhSach).forEach((hang, chiSo) => {
+    const cu = viTriCu.get(hang.dataset.slug);
+    if (cu === undefined) {
+      hang.animate(
+        [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
+        { duration: 320, delay: Math.min(chiSo, 12) * 22, easing: 'cubic-bezier(.16, 1, .3, 1)', fill: 'backwards' }
+      );
+      return;
+    }
+    const lech = cu - hang.getBoundingClientRect().top;
+    if (Math.abs(lech) < 1) return;
+    hang.animate(
+      [{ transform: `translateY(${lech}px)` }, { transform: 'none' }],
+      { duration: 380, easing: 'cubic-bezier(.16, 1, .3, 1)' }
+    );
+  });
 }
 
 function vePhanTrang() {
@@ -205,7 +277,7 @@ function vePhanTrang() {
   }
   const cacTrang = [...gan].filter((n) => n >= 1 && n <= trangThai.soTrang).sort((a, b) => a - b);
 
-  let html = `<button type="button" class="trang-nut" data-trang="${trangThai.trang - 1}"${trangThai.trang === 1 ? ' disabled' : ''}>← Trang trước</button>`;
+  let html = `<button type="button" class="trang-nut" data-trang="${trangThai.trang - 1}"${trangThai.trang === 1 ? ' disabled' : ''}>${bieuTuong('trai')}Trang trước</button>`;
   let truoc = 0;
   for (const n of cacTrang) {
     if (truoc && n - truoc > 1) html += '<span class="trang-cach">…</span>';
@@ -214,7 +286,7 @@ function vePhanTrang() {
       `${n === trangThai.trang ? ' aria-current="page"' : ''}>${n}</button>`;
     truoc = n;
   }
-  html += `<button type="button" class="trang-nut" data-trang="${trangThai.trang + 1}"${trangThai.trang === trangThai.soTrang ? ' disabled' : ''}>Trang sau →</button>`;
+  html += `<button type="button" class="trang-nut" data-trang="${trangThai.trang + 1}"${trangThai.trang === trangThai.soTrang ? ' disabled' : ''}>Trang sau${bieuTuong('mui-ten')}</button>`;
   o.innerHTML = html;
 }
 
@@ -237,6 +309,7 @@ async function napDanhSach({ dayVaoLichSu = false } = {}) {
   const loiGio = loiKhoangGio();
   if (loiGio) {
     $('#kho-ket-qua').textContent = '';
+    $('#danh-sach').classList.remove('dang-cho');
     $('#danh-sach').innerHTML = dongTrong(loiGio);
     $('#phan-trang').innerHTML = '';
     return;
@@ -255,10 +328,11 @@ async function napDanhSach({ dayVaoLichSu = false } = {}) {
 
   let trang;
   try {
-    trang = await goi('/projects', { thamSo });
+    trang = await apiCatalog.trangProject(thamSo);
   } catch (loi) {
     if (luot !== luotTaiGanNhat) return;
-    $('#danh-sach').innerHTML = dongTrong(
+    $('#danh-sach').classList.remove('dang-cho');
+    $('#danh-sach').innerHTML = dongLoi(
       loi instanceof LoiApi ? loi.message : 'Không tải được danh sách project.'
     );
     $('#kho-ket-qua').textContent = '';
@@ -287,9 +361,10 @@ async function napDanhSach({ dayVaoLichSu = false } = {}) {
 export async function nap() {
   docTuDiaChi();
   try {
-    trangThai.thongKe = await goi('/stats');
+    trangThai.thongKe = await apiCatalog.thongKe();
   } catch (loi) {
-    $('#danh-sach').innerHTML = dongTrong(
+    $('#danh-sach').classList.remove('dang-cho');
+    $('#danh-sach').innerHTML = dongLoi(
       loi instanceof LoiApi ? loi.message : 'Không tải được số liệu của kho project.'
     );
     return;
@@ -307,17 +382,59 @@ export async function nap() {
   const soLevel = trangThai.thongKe.by_level.length;
   $('#kho-ghi-chu').textContent =
     `Toàn bộ ${so(trangThai.thongKe.projects)} project của kho, chia theo ${soLevel} level ` +
-    `và ${trangThai.thongKe.by_track.length} track. Chọn nhiều điều kiện cùng lúc cũng được.`;
+    `và ${trangThai.thongKe.by_track.length} track.`;
   veBoLoc();
+  datBoLocGon();
+  MAN_HINH_HEP.addEventListener('change', datBoLocGon);
+  // Tới trang bằng một liên kết đã lọc sẵn (ví dụ "Xem tất cả 25 project của
+  // level Nhập môn") thì thứ người dùng cần là danh sách; trên điện thoại bộ lọc
+  // mở đẩy nó xuống dưới, nên cuộn tới dòng đếm kết quả.
+  const daLocSan = trangThai.levels.length + trangThai.tracks.length > 0;
   await napDanhSach();
+  if (daLocSan && MAN_HINH_HEP.matches) $('#kho-ket-qua').scrollIntoView({ block: 'start' });
 }
 
-/** Vẽ lại danh sách sau khi tiến độ đổi, không phải gọi lại API. */
+/**
+ * Vẽ lại danh sách sau khi tiến độ đổi, không phải gọi lại API.
+ *
+ * Hai thứ đổi theo tiến độ: lớp da-xong, vốn vừa tô hàng vừa hiện dấu tích ở ô
+ * đầu hàng, và nhãn trạng thái nằm cạnh tên project. Thiếu phần nhãn thì người
+ * vừa nộp bài xong phải tải lại trang mới thấy chữ "Chờ chấm" hiện ra.
+ */
 export function veLaiTienDo() {
   $$('#danh-sach .hang').forEach((hang) => {
-    const xong = daHoanThanh(hang.dataset.slug);
+    const slug = hang.dataset.slug;
+    const xong = daHoanThanh(slug);
+    const trangThaiBai = trangThaiCua(slug);
+
+    // Ô đánh dấu chứa sẵn biểu tượng, chỉ lớp da-xong quyết định nó hiện hay ẩn.
     hang.classList.toggle('da-xong', xong);
-    hang.querySelector('.hang-o').textContent = xong ? '✓' : '';
+    const project = trangThai.itemsDangXem.get(slug);
+    if (project) {
+      const o = oTrangThai(project);
+      hang.classList.toggle('bi-khoa', o.khoa);
+      const oDau = hang.querySelector('.hang-o');
+      oDau.setAttribute('aria-label', o.nhan);
+      oDau.setAttribute('title', o.nhan);
+      oDau.innerHTML = bieuTuong(o.khoa ? 'khoa' : 'tich');
+    }
+
+    const oTen = hang.querySelector('.hang-ten');
+    const nhanCu = oTen.querySelector('.hang-nhan');
+    const canNhan = trangThaiBai !== null && !xong;
+    if (!canNhan) {
+      nhanCu?.remove();
+      return;
+    }
+    if (nhanCu) {
+      nhanCu.className = `hang-nhan nhan the-${trangThaiBai}`;
+      nhanCu.textContent = NHAN_TRANG_THAI[trangThaiBai];
+      return;
+    }
+    const nhan = document.createElement('i');
+    nhan.className = `hang-nhan nhan the-${trangThaiBai}`;
+    nhan.textContent = NHAN_TRANG_THAI[trangThaiBai];
+    oTen.append(nhan);
   });
 }
 
@@ -404,6 +521,9 @@ export function khoiTao() {
   // Nút quay lại và nút đi tiếp của trình duyệt: đọc lại bộ lọc từ địa chỉ mới
   // rồi tải danh sách, không ghi thêm mốc lịch sử nào nữa.
   window.addEventListener('popstate', () => {
+    // Mốc của bảng trượt và hộp thoại (xem js/giao-dien.js) cùng địa chỉ với
+    // mốc bộ lọc: địa chỉ không đổi thì không có gì để tải lại.
+    if (window.location.search === diaChiDaGhi) return;
     docTuDiaChi();
     if (trangThai.thongKe !== null) locBoDieuKienLa();
     veBoLoc();
@@ -412,7 +532,7 @@ export function khoiTao() {
 
   $('#danh-sach').addEventListener('click', (sk) => {
     const hang = sk.target.closest('.hang');
-    if (hang) moProject(hang.dataset.slug);
+    if (hang) moProject(hang.dataset.slug, hang);
   });
 
   $('#phan-trang').addEventListener('click', (sk) => {
@@ -420,6 +540,6 @@ export function khoiTao() {
     if (!nut || nut.disabled) return;
     trangThai.trang = Number(nut.dataset.trang);
     napDanhSach({ dayVaoLichSu: true });
-    window.scrollTo({ top: 0 });
+    $('#kho-ket-qua').scrollIntoView({ block: 'start' });
   });
 }

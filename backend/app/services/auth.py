@@ -10,6 +10,12 @@ from app.core.security import hash_password, verify_password
 from app.models.user import User
 from app.schemas.auth import UserCreate
 
+# Chuỗi băm dùng để so sánh khi không tìm thấy tài khoản. Bỏ qua bước so sánh
+# thì đăng nhập vào tài khoản không tồn tại trả lời nhanh hơn hàng trăm lần so
+# với sai mật khẩu, và người ngoài đoán được tài khoản nào đang có chỉ bằng
+# đồng hồ, dù câu báo lỗi của hai trường hợp giống hệt nhau.
+_HASH_GIA = hash_password("mat-khau-gia-de-can-thoi-gian")
+
 
 class EmailAlreadyUsed(Exception):
     """Thư điện tử đã có người dùng khác đăng ký."""
@@ -70,6 +76,7 @@ def authenticate(db: Session, identifier: str, password: str) -> User | None:
     """Kiểm tra cặp định danh và mật khẩu. Trả về None nếu không hợp lệ."""
     user = get_user_by_identifier(db, identifier)
     if user is None or not user.is_active:
+        verify_password(password, _HASH_GIA)
         return None
     if not verify_password(password, user.hashed_password):
         return None

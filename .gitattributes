@@ -5,3 +5,8 @@
 # Hai loại file dưới đây do trình thông dịch của Windows chạy, giữ nguyên CRLF.
 *.ps1 text eol=crlf
 *.cmd text eol=crlf
+
+# Script của Linux và macOS thì ngược lại: một ký tự CR thừa ở cuối dòng đầu làm
+# hệ điều hành không tìm thấy trình thông dịch, nên phải khoá về LF.
+*.sh text eol=lf
+

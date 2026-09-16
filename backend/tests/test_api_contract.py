@@ -143,3 +143,45 @@ def test_password_too_long_says_why(client: TestClient) -> None:
     )
     assert phan_hoi.status_code == 422
     assert phan_hoi.json()["detail"] == "Mật khẩu quá dài, tối đa 72 byte."
+
+
+def test_index_html_redirects_with_a_relative_target(client: TestClient) -> None:
+    """Trang chủ chỉ có một địa chỉ, và địa chỉ đích phải viết theo dạng tương đối.
+
+    Đích tương đối giữ cho lệnh chuyển hướng đúng ở cả hai kiểu triển khai. Nếu
+    viết cứng thành "/" thì bản nằm sau máy chủ trung gian, ví dụ ở
+    https://ptitai.org/projects/, sẽ đẩy người dùng ra gốc tên miền chứ không đưa
+    về trang chủ của nền tảng.
+    """
+    phan_hoi = client.get("/index.html", follow_redirects=False)
+    assert phan_hoi.status_code == 301
+    assert phan_hoi.headers["location"] == "./"
+
+
+def test_frontend_never_points_at_the_domain_root(client: TestClient) -> None:
+    """Hai trang HTML không được chứa liên kết bắt đầu bằng dấu gạch chéo.
+
+    Liên kết như vậy luôn trỏ về gốc tên miền, nên nó hỏng ngay khi nền tảng nằm
+    dưới một tiền tố đường dẫn. Mọi liên kết trong trang phải là đường dẫn tương
+    đối để đi theo được cả hai kiểu triển khai.
+    """
+    for trang in ("/", "/kho.html"):
+        noi_dung = client.get(trang).text
+        assert 'href="/' not in noi_dung, trang
+        assert 'src="/' not in noi_dung, trang
+
+
+def test_root_path_is_normalized() -> None:
+    """Ba cách viết tiền tố đường dẫn phải cho ra cùng một kết quả."""
+    from app.core.config import Settings
+
+    khoa = {"secret_key": "khoa-chi-dung-cho-kiem-thu-du-dai-32-byte"}
+    for viet_vao, mong_doi in (
+        ("projects", "/projects"),
+        ("/projects", "/projects"),
+        ("/projects/", "/projects"),
+        ("", ""),
+        ("   ", ""),
+        ("/", ""),
+    ):
+        assert Settings(root_path=viet_vao, **khoa).normalized_root_path == mong_doi, viet_vao

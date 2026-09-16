@@ -51,6 +51,18 @@ def get_current_user(db: DbSession, credentials: Credentials) -> User:
     return user
 
 
+def get_optional_user(db: DbSession, credentials: Credentials) -> User | None:
+    """Người dùng đang đăng nhập nếu có gửi token, None nếu gọi ẩn danh.
+
+    Dành cho endpoint công khai mà biết người gọi thì trả lời sát hơn, như chọn
+    ngẫu nhiên một project vừa sức. Token có gửi mà hỏng vẫn bị 401 như mọi nơi,
+    để giao diện biết phiên đã hết hạn thay vì âm thầm coi là ẩn danh.
+    """
+    if credentials is None:
+        return None
+    return get_current_user(db, credentials)
+
+
 def get_current_mentor(user: Annotated[User, Depends(get_current_user)]) -> User:
     """Chỉ cho qua nếu người dùng là giảng viên.
 
@@ -80,4 +92,5 @@ def get_page_params(
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
 CurrentMentor = Annotated[User, Depends(get_current_mentor)]
+OptionalUser = Annotated[User | None, Depends(get_optional_user)]
 Paging = Annotated[PageParams, Depends(get_page_params)]

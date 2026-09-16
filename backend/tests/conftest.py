@@ -18,6 +18,14 @@ import pytest
 _TEMP_DIR = Path(tempfile.mkdtemp(prefix="nen-tang-project-test-"))
 os.environ["DATABASE_URL"] = f"sqlite:///{(_TEMP_DIR / 'test.db').as_posix()}"
 os.environ["SECRET_KEY"] = "khoa-chi-dung-cho-kiem-thu-du-dai-32-byte"
+# Ảnh đại diện cũng phải nằm cạnh cơ sở dữ liệu tạm. Tệp ảnh được nhận ra theo mã
+# người dùng, nên nếu dùng chung thư mục với bản thật thì bài kiểm thử tải ảnh
+# lên rồi xoá sẽ xoá luôn ảnh của người dùng thật có cùng mã.
+os.environ["AVATAR_DIR"] = (_TEMP_DIR / "anh-dai-dien").as_posix()
+# Bộ kiểm thử luôn chạy như khi nền tảng nằm ngay tại gốc tên miền. Không ghi đè
+# thì file .env của máy đang chạy sẽ lọt vào, và một máy có đặt ROOT_PATH sẽ cho
+# kết quả kiểm thử khác hẳn máy không đặt.
+os.environ["ROOT_PATH"] = ""
 
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402

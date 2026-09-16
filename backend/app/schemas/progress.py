@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field, HttpUrl, field_validator
+from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
 
 from app.models.enums import SubmissionStatus
 from app.schemas.catalog import LevelRead, ProjectRef, TrackRead
@@ -38,6 +38,17 @@ class SubmissionReview(BaseModel):
     score: int | None = Field(default=None, ge=0, le=100)
     feedback: str = Field(default="", max_length=4000)
 
+    @field_validator("score", mode="before")
+    @classmethod
+    def reject_bool_score(cls, value: object) -> object:
+        """Chặn true/false: Pydantic coi bool là một dạng của int nên chúng lọt qua thành 1/0.
+
+        Chỉ chặn đúng bool; chuỗi số như "90" vẫn được đọc như trước.
+        """
+        if isinstance(value, bool):
+            raise ValueError("Điểm bài nộp phải là số nguyên, không phải đúng/sai.")
+        return value
+
     @field_validator("feedback")
     @classmethod
     def strip_feedback(cls, value: str) -> str:
@@ -57,10 +68,28 @@ class SubmissionReview(BaseModel):
             raise ValueError("Kết quả chấm phải là đạt, chưa đạt hoặc cần sửa lại.")
         return value
 
+    @model_validator(mode="after")
+    def require_feedback_when_not_accepted(self) -> SubmissionReview:
+        """Bài bị trả về hay chưa đạt phải kèm nhận xét.
+
+        Người nộp chỉ thấy một nhãn đỏ nếu không có nhận xét, và không biết phải
+        sửa gì để nộp lại. Bài đạt thì nhận xét vẫn tuỳ ý.
+        """
+        if self.status is not SubmissionStatus.ACCEPTED and not self.feedback:
+            raise ValueError("Cần ghi nhận xét khi kết quả là cần sửa lại hoặc chưa đạt.")
+        return self
+
+
+class SubmissionProjectRef(ProjectRef):
+    """Project của một bài nộp, kèm level và track để màn hình chấm bài nêu ngữ cảnh."""
+
+    level: LevelRead
+    track: TrackRead
+
 
 class SubmissionRead(ORMModel):
     id: int
-    project: ProjectRef
+    project: SubmissionProjectRef
     repo_url: str
     demo_url: str | None
     note: str
@@ -80,10 +109,25 @@ class SubmissionAuthor(ORMModel):
     display_name: str
 
 
+class PreviousReview(BaseModel):
+    """Lần chấm gần nhất trước đó của cùng người nộp cho cùng project."""
+
+    status: SubmissionStatus
+    feedback: str
+    reviewed_at: datetime | None
+
+
 class SubmissionWithAuthor(SubmissionRead):
-    """Bài nộp kèm người nộp. Chỉ tài khoản giảng viên mới đọc được cấu trúc này."""
+    """Bài nộp kèm người nộp. Chỉ tài khoản giảng viên mới đọc được cấu trúc này.
+
+    Hai trường cuối do tầng dịch vụ gắn thêm khi liệt kê: bài nộp lại phải khác
+    bài nộp lần đầu trong hàng đợi, và người chấm cần thấy mình (hoặc đồng nghiệp)
+    đã yêu cầu sửa gì ở lần trước.
+    """
 
     user: SubmissionAuthor
+    attempt: int = Field(default=1, description="Lần nộp thứ mấy của người này cho project này.")
+    previous_review: PreviousReview | None = None
 
 
 class BadgeRead(ORMModel):

@@ -59,9 +59,3 @@ class Page[T](BaseModel):
             page_size=params.page_size,
             pages=ceil(total / params.page_size) if params.page_size else 0,
         )
-
-
-class Message(BaseModel):
-    """Phản hồi chỉ gồm một câu thông báo."""
-
-    detail: str

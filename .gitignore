@@ -4,3 +4,10 @@ desktop.ini
 .DS_Store
 .vscode/
 .idea/
+
+# Dữ liệu vận hành và bí mật của máy chủ thật, không phải mã nguồn.
+sao-luu/
+tai-khoan-trinh-bay.txt
+
+# Mẫu trình bày tham khảo, dung lượng lớn.
+*.pptx

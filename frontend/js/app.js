@@ -2,55 +2,33 @@
    dùng chung và chạy các hiệu ứng theo cuộn. */
 
 import { khiPhienHong, khoiPhucPhien, phien, theoDoiPhienGiuaCacThe } from './api.js';
+import * as baBuoc from './ba-buoc.js';
 import * as chamBai from './cham-bai.js';
+import * as chanTrang from './chan-trang.js';
+import * as chuThichVideo from './chu-thich-video.js';
 import * as giangVien from './giang-vien.js';
-import { $, $$, batDauHienDan, chuanBiCacBang, dongBang, thongBao } from './giao-dien.js';
+import * as hopTaiKhoan from './hop-tai-khoan.js';
+import * as keuGoi from './keu-goi.js';
+import { $, $$, chuanBiCacBang, danhDauDaCuon, dongBang, theoDoiChieuCaoDauTrang, thongBao } from './giao-dien.js';
 import * as kho from './kho.js';
+import * as khungVideo from './khung-video.js';
 import * as loTrinh from './lo-trinh.js';
+import * as oTim from './o-tim.js';
 import * as project from './project.js';
 import { SU_KIEN, nghe, phat } from './su-kien.js';
 import * as taiKhoan from './tai-khoan.js';
+import * as videoHuongDan from './video-huong-dan.js';
 import * as xepHang from './xep-hang.js';
 
-const giamChuyenDong = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-/* Hiệu ứng theo cuộn: vạch tiến độ trên cùng, bốn số liệu đếm lên và level đang
-   xem được tô đậm. Phần nội dung hiện dần nằm trong giao-dien.js vì nó phải theo
-   dõi được cả những phần tử dựng sau khi gọi API. */
-
-function demLen(o) {
-  const dich = Number(o.dataset.dem);
-  if (giamChuyenDong) {
-    o.textContent = dich;
-    return;
-  }
-
-  const batDau = performance.now();
-  const buoc = (bayGio) => {
-    const phan = Math.min(1, (bayGio - batDau) / 1100);
-    o.textContent = Math.round(dich * (1 - (1 - phan) ** 3));
-    if (phan < 1) requestAnimationFrame(buoc);
-  };
-  requestAnimationFrame(buoc);
-}
+/* Theo vị trí cuộn: level đang xem được tô đậm ở cả mục lục bên trái lẫn ga của
+   nó trên tuyến, và đầu trang co lại một chút khi trang đã cuộn khỏi đỉnh. */
 
 function theoCuon() {
   let dangCho = false;
 
   const kiemTra = () => {
     dangCho = false;
-    const nguong = window.innerHeight - 60;
-
-    for (const o of $$('[data-dem]:not(.da-dem)')) {
-      if (o.getBoundingClientRect().top <= nguong) {
-        o.classList.add('da-dem');
-        demLen(o);
-      }
-    }
-
-    const toiDa = document.documentElement.scrollHeight - window.innerHeight;
-    $('#vach-cuon-thanh').style.width =
-      `${(toiDa > 0 ? (window.scrollY / toiDa) * 100 : 0).toFixed(2)}%`;
+    danhDauDaCuon();
 
     const cacDoan = $$('.doan-level');
     const cacNut = $$('.muc-nut');
@@ -59,6 +37,7 @@ function theoCuon() {
       if (o.getBoundingClientRect().top <= window.innerHeight * 0.34) dangXem = chiSo;
     });
     cacNut.forEach((nut, chiSo) => nut.classList.toggle('dang-xem', chiSo === dangXem));
+    cacDoan.forEach((doan, chiSo) => doan.classList.toggle('dang-xem', chiSo === dangXem));
   };
 
   const hen = () => {
@@ -70,28 +49,6 @@ function theoCuon() {
   window.addEventListener('scroll', hen, { passive: true });
   window.addEventListener('resize', hen);
   kiemTra();
-}
-
-/** Vùng sáng đi theo con trỏ ở phần mở đầu. */
-function hieuUngDauTrang() {
-  if (giamChuyenDong) return;
-
-  const moDau = $('#mo-dau');
-  const den = $('#mo-dau-den');
-  moDau.addEventListener(
-    'mousemove',
-    (sk) => {
-      const khung = moDau.getBoundingClientRect();
-      den.style.transform = `translate(${sk.clientX - khung.left}px, ${sk.clientY - khung.top}px)`;
-    },
-    { passive: true }
-  );
-  moDau.addEventListener('mouseenter', () => {
-    den.style.opacity = '1';
-  });
-  moDau.addEventListener('mouseleave', () => {
-    den.style.opacity = '0';
-  });
 }
 
 /* Sự kiện dùng chung cho cả trang. */
@@ -109,11 +66,12 @@ function ganSuKienChung() {
     if (sk.target.closest('[data-mo-cham-bai]')) chamBai.moBangChamBai();
   });
 
-  nghe(SU_KIEN.CAN_DANG_NHAP, () => taiKhoan.moHopDangNhap());
+  nghe(SU_KIEN.CAN_DANG_NHAP, (chiTiet) => hopTaiKhoan.moHopDangNhap('dang-nhap', chiTiet?.project ?? null));
 
   // Backend từ chối token: đưa trang về trạng thái chưa đăng nhập và nói rõ lý do.
   khiPhienHong(() => {
-    thongBao('Phiên đăng nhập đã hết hạn. Đăng nhập lại để nộp bài.', 'loi');
+    taiKhoan.donSauThoat();
+    thongBao('Phiên đăng nhập đã hết hạn. Đăng nhập lại rồi tiếp tục.', 'loi');
     phat(SU_KIEN.PHIEN_THAY_DOI);
   });
 
@@ -125,6 +83,7 @@ function ganSuKienChung() {
       await khoiPhucPhien();
       thongBao('Bạn vừa đăng nhập ở một thẻ khác, trang này đã cập nhật theo.');
     } else {
+      taiKhoan.donSauThoat();
       thongBao('Bạn vừa đăng xuất ở một thẻ khác, trang này cũng thoát theo.');
     }
     phat(SU_KIEN.PHIEN_THAY_DOI);
@@ -134,45 +93,115 @@ function ganSuKienChung() {
     taiKhoan.veKhuTaiKhoan();
     await taiKhoan.napTienDo();
     kho.veLaiTienDo();
+    loTrinh.veLaiTienDo();
     project.veLaiBangDangMo();
+    keuGoi.ve();
     xepHang.nap();
   });
 
   nghe(SU_KIEN.TIEN_DO_THAY_DOI, async () => {
     await taiKhoan.napTienDo();
     kho.veLaiTienDo();
+    loTrinh.veLaiTienDo();
     project.veLaiBangDangMo();
+    keuGoi.ve();
     xepHang.nap();
   });
+
+  // Tiến độ về với số liệu khác lần trước dù trang này không nộp hay chấm gì
+  // (bài được chấm ở nơi khác): mọi phần vẽ tiến độ vẽ lại, không chỉ thẻ tên.
+  nghe(SU_KIEN.TIEN_DO_DA_NAP, () => {
+    kho.veLaiTienDo();
+    loTrinh.veLaiTienDo();
+    project.veLaiBangDangMo();
+    keuGoi.ve();
+    xepHang.nap();
+  });
+
+  // Người quay lại thẻ sau một lúc thì tải lại tiến độ, để thấy kết quả chấm
+  // trong lúc vắng mặt mà không phải tải lại trang.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && phien.daDangNhap) taiKhoan.napTienDo();
+  });
+}
+
+/* Trang mở bằng một địa chỉ có neo, ví dụ /#xep-hang từ trang kho, thì trình
+   duyệt cuộn tới mục đó ngay lúc HTML vừa nạp, khi phần lớn nội dung phía trên
+   còn là dòng "Đang tải…". Nội dung đó vẽ xong thì mục đã trôi xa hàng nghìn
+   điểm ảnh. Cuộn lại một lần nữa sau mỗi phần nạp xong; scroll-margin-top của
+   mục đã trừ sẵn chiều cao đầu trang. Người dùng đã tự cuộn đi thì thôi. */
+
+function cuonLaiToiNeo() {
+  const ten = location.hash.slice(1);
+  if (!ten) return;
+  let muc = null;
+  try {
+    muc = document.getElementById(decodeURIComponent(ten));
+  } catch {
+    return;
+  }
+  if (muc && !daTuCuon) muc.scrollIntoView({ block: 'start' });
+}
+
+let daTuCuon = false;
+
+function theoDoiTuCuon() {
+  if (!location.hash) return;
+  const ghi = () => {
+    daTuCuon = true;
+  };
+  window.addEventListener('wheel', ghi, { passive: true, once: true });
+  window.addEventListener('touchstart', ghi, { passive: true, once: true });
+  window.addEventListener('keydown', ghi, { once: true });
 }
 
 /* Khởi động. */
 
 async function khoiDong() {
+  khungVideo.khoiTao();
+  videoHuongDan.khoiTao();
+  // Bốn phần này nghe sự kiện kho đã nạp, nên phải gắn trước khi gọi kho.nap().
+  chuThichVideo.khoiTao();
+  baBuoc.khoiTao();
+  giangVien.khoiTao();
+  keuGoi.khoiTao();
+  theoDoiChieuCaoDauTrang();
+  oTim.khoiTao();
   chuanBiCacBang();
   kho.khoiTao();
   project.khoiTao();
+  hopTaiKhoan.khoiTao();
   taiKhoan.khoiTao();
   chamBai.khoiTao();
   loTrinh.khoiTao();
+  xepHang.khoiTao();
   ganSuKienChung();
-  hieuUngDauTrang();
-  batDauHienDan();
+  theoDoiTuCuon();
 
   await khoiPhucPhien();
   taiKhoan.veKhuTaiKhoan();
 
+  // Cột số liệu ở chân trang gọi /stats trước để kho.nap() dùng chung một lượt
+  // gọi, kể cả khi lượt ấy lỗi: gọi sau thì kho đã bỏ lời hứa hỏng và chân trang
+  // sẽ gọi lại lần hai.
+  chanTrang.nap();
   // Kho project phải xong trước, vì phần tiến độ vẽ đè lên chính danh sách đó.
   await kho.nap();
+  // Phần mở đầu đã đủ cao, nên giờ mới biết ba bước có thật sự trong tầm nhìn không.
+  baBuoc.theoDoiHienRa();
   if (phien.daDangNhap) {
     await taiKhoan.napTienDo();
     kho.veLaiTienDo();
   }
-
-  loTrinh.nap();
-  xepHang.nap();
-  giangVien.nap();
+  // Vẽ sau cả kho lẫn tiến độ, để mục hiện trọn một trạng thái; kho lỗi mà chưa
+  // đăng nhập thì lượt vẽ này thu hai khối giữ chỗ của mục lại.
+  keuGoi.ve();
+  cuonLaiToiNeo();
   theoCuon();
+
+  // Ba phần này tự bắt lỗi của mình, nên Promise.all không bao giờ ném ra.
+  await Promise.all([loTrinh.nap(), xepHang.nap(), giangVien.nap()]);
+  cuonLaiToiNeo();
 }
 
 khoiDong();

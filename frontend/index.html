@@ -5,206 +5,383 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nền tảng học tập theo project · Khoa Trí tuệ nhân tạo</title>
 <meta name="description" content="Kho project xếp theo sáu level, từ dễ đến khó. Sinh viên chọn project, nộp bài, được chấm và nhận điểm tích luỹ.">
-<link rel="icon" href="anh/logo-khoa-ai.png" type="image/png">
+<meta name="theme-color" content="#FFFFFF">
+<link rel="icon" href="anh/favicon-48.png" sizes="48x48" type="image/png">
 <link rel="stylesheet" href="css/style.css">
+<!-- Nạp sẵn mọi module, thay vì để trình duyệt phát hiện từng import nối đuôi nhau. -->
+<link rel="modulepreload" href="js/app.js">
+<link rel="modulepreload" href="js/api.js">
+<link rel="modulepreload" href="js/ba-buoc.js">
+<link rel="modulepreload" href="js/cham-bai.js">
+<link rel="modulepreload" href="js/chan-trang.js">
+<link rel="modulepreload" href="js/chu-thich-video.js">
+<link rel="modulepreload" href="js/giang-vien.js">
+<link rel="modulepreload" href="js/giao-dien.js">
+<link rel="modulepreload" href="js/goc.js">
+<link rel="modulepreload" href="js/hop-tai-khoan.js">
+<link rel="modulepreload" href="js/keu-goi.js">
+<link rel="modulepreload" href="js/kho.js">
+<link rel="modulepreload" href="js/khung-video.js">
+<link rel="modulepreload" href="js/lo-trinh.js">
+<link rel="modulepreload" href="js/o-tim.js">
+<link rel="modulepreload" href="js/project.js">
+<link rel="modulepreload" href="js/su-kien.js">
+<link rel="modulepreload" href="js/tai-khoan.js">
+<link rel="modulepreload" href="js/tien-do.js">
+<link rel="modulepreload" href="js/video-huong-dan.js">
+<link rel="modulepreload" href="js/xep-hang.js">
 </head>
 <body>
 
-<div class="vach-cuon"><i id="vach-cuon-thanh"></i></div>
+<a class="bo-qua" href="#noi-dung">Bỏ qua tới nội dung</a>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="bt-tich" viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7"/></symbol>
+  <symbol id="bt-dong" viewBox="0 0 16 16"><path d="m4 4 8 8M12 4l-8 8"/></symbol>
+  <symbol id="bt-mui-ten" viewBox="0 0 16 16"><path d="M3 8h10M9 4l4 4-4 4"/></symbol>
+  <symbol id="bt-trai" viewBox="0 0 16 16"><path d="M13 8H3M7 4 3 8l4 4"/></symbol>
+  <symbol id="bt-tim" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></symbol>
+  <symbol id="bt-ngoai" viewBox="0 0 16 16"><path d="M7 3H3.5A.5.5 0 0 0 3 3.5v9a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5V9M9 3h4v4M13 3 7 9"/></symbol>
+  <symbol id="bt-loi" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v3.5M8 11h.01"/></symbol>
+  <symbol id="bt-badge-project" viewBox="0 0 16 16"><path d="M3 4.5h10M3 8h10M3 11.5h6"/><path d="m11 10.5 1.5 1.5 2.5-3"/></symbol>
+  <symbol id="bt-badge-level" viewBox="0 0 16 16"><path d="M3 13V3M3 3h8l-2 2.5 2 2.5H3"/><path d="M3 13h10"/></symbol>
+  <symbol id="bt-badge-diem" viewBox="0 0 16 16"><path d="m8 2.5 1.7 3.5 3.8.5-2.8 2.7.7 3.8L8 11.2 4.6 13l.7-3.8L2.5 6.5l3.8-.5z"/></symbol>
+  <symbol id="bt-tam-dung" viewBox="0 0 16 16"><path d="M6 4.5v7M10 4.5v7"/></symbol>
+  <symbol id="bt-phat" viewBox="0 0 16 16"><path d="M6 4.5v7l5.5-3.5z" fill="currentColor"/></symbol>
+  <symbol id="bt-badge-track" viewBox="0 0 16 16"><circle cx="4" cy="4" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="4" r="1.5"/><path d="M4 5.5v2a2 2 0 0 0 2 2h4a2 2 0 0 1 2 2v0M12 5.5v1"/></symbol>
+  <symbol id="bt-mat" viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></symbol>
+  <symbol id="bt-mat-an" viewBox="0 0 16 16"><path d="M6.7 3.6A6 6 0 0 1 8 3.5c4 0 6.5 4.5 6.5 4.5a11 11 0 0 1-1.6 2.1M9.4 9.4a2 2 0 0 1-2.8-2.8M4.4 4.5C2.6 5.7 1.5 8 1.5 8S4 12.5 8 12.5a6 6 0 0 0 3.5-1.1M2.5 2.5l11 11"/></symbol>
+  <symbol id="bt-caps" viewBox="0 0 16 16"><path d="M8 2.5 3 7.5h2.75V11h4.5V7.5H13z"/><path d="M5.75 13.5h4.5"/></symbol>
+  <symbol id="bt-khoa" viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1.25"/><path d="M5.5 7V5.25a2.5 2.5 0 0 1 5 0V7"/></symbol>
+  <symbol id="bt-gio" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></symbol>
+  <symbol id="bt-skill" viewBox="0 0 16 16"><path d="M2.5 2.5h5l6 6-5 5-6-6z"/><circle cx="5.25" cy="5.25" r=".9"/></symbol>
+  <symbol id="bt-lo-trinh" viewBox="0 0 16 16"><path d="M2.5 13.5h3.5v-3.5h3.5V6.5H13V3"/></symbol>
+  <symbol id="bt-dia-diem" viewBox="0 0 16 16"><path d="M8 14.5s4.5-4.3 4.5-8a4.5 4.5 0 0 0-9 0c0 3.7 4.5 8 4.5 8z"/><circle cx="8" cy="6.5" r="1.5"/></symbol>
+  <symbol id="bt-boi-canh" viewBox="0 0 16 16"><path d="M4 2.5h6l2.5 2.5v8.5H4z"/><path d="M10 2.5V5h2.5M6 8h4M6 10.5h4"/></symbol>
+  <symbol id="bt-muc-tieu" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2.5"/><path d="M8 2.5v1.5M8 12v1.5M2.5 8H4M12 8h1.5"/></symbol>
+  <symbol id="bt-tang" viewBox="0 0 16 16"><path d="m8 3 5.5 3L8 9 2.5 6z"/><path d="m2.5 9 5.5 3 5.5-3M2.5 11.5 8 14.5l5.5-3"/></symbol>
+  <symbol id="bt-nop" viewBox="0 0 16 16"><path d="M8 10.5V3M5 6l3-3 3 3"/><path d="M3 10.5v2a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-2"/></symbol>
+  <symbol id="bt-nguoi" viewBox="0 0 16 16"><circle cx="8" cy="5.5" r="3"/><path d="M2.5 14a5.5 5.5 0 0 1 11 0"/></symbol>
+  <symbol id="bt-du-lieu" viewBox="0 0 16 16"><ellipse cx="8" cy="4" rx="5.5" ry="2"/><path d="M2.5 4v8c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2V4M2.5 8c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2"/></symbol>
+</svg>
 
 <header class="dau-trang">
-  <a class="hieu" href="/" aria-label="Trang chủ · Trung tâm Đào tạo chuyên sâu AI">
-    <img class="hieu-logo" src="anh/logo-trung-tam-ai.png" width="294" height="230" alt="">
-    <img class="hieu-logo hieu-logo-nho" src="anh/logo-khoa-ai.png" width="415" height="418" alt="">
-    <img class="hieu-logo hieu-logo-nho" src="anh/logo-hoc-vien.png" width="50" height="60" alt="">
-    <span class="hieu-chu">
-      <span class="hieu-ten">Trung tâm Đào tạo <span class="lien-mach">chuyên sâu AI</span></span>
-      <span class="hieu-phu">Khoa Trí tuệ nhân tạo</span>
-      <span class="hieu-phu">Học viện Công nghệ Bưu chính Viễn thông</span>
-    </span>
-  </a>
-  <nav class="dieu-huong">
-    <a href="/kho.html">Kho project</a>
-    <a href="#lo-trinh-nghe">Lộ trình</a>
-    <a href="#xep-hang">Bảng xếp hạng</a>
-    <a href="#giang-vien">Giảng viên</a>
-  </nav>
-  <div class="dau-trang-phai" id="khu-tai-khoan"></div>
+  <div class="khung khung-dau dau-trang-trong">
+    <div class="dau-trang-trai">
+      <a class="hieu" href="./" aria-label="Trang chủ · Trung tâm Đào tạo chuyên sâu AI">
+        <img class="hieu-logo" src="anh/logo-trung-tam-ai.png" width="294" height="230" alt="">
+        <img class="hieu-logo hieu-logo-nho" src="anh/logo-khoa-ai-96.png" width="96" height="97" alt="">
+        <img class="hieu-logo hieu-logo-nho" src="anh/logo-hoc-vien.png" width="50" height="60" alt="">
+        <span class="hieu-chu">
+          <span class="hieu-ten">Trung tâm Đào tạo <span class="lien-mach">chuyên sâu AI</span></span>
+          <span class="hieu-phu">Khoa Trí tuệ nhân tạo</span>
+          <span class="hieu-phu">Học viện Công nghệ Bưu chính Viễn thông</span>
+        </span>
+      </a>
+    </div>
+    <div class="tim" id="tim">
+      <a class="nut-mo-tim" id="nut-mo-tim" href="kho.html" aria-label="Tìm project"><svg class="bt" aria-hidden="true"><use href="#bt-tim"/></svg></a>
+      <form class="tim-mau" id="tim-mau" role="search" action="kho.html" method="get">
+        <div class="tim-khung">
+          <svg class="bt tim-bt" aria-hidden="true"><use href="#bt-tim"/></svg>
+          <input class="tim-o" id="tim-o" type="search" name="q" maxlength="100" placeholder="Tìm project" aria-label="Tìm project theo tên hoặc tóm tắt" autocomplete="off" spellcheck="false" enterkeyhint="search">
+          <kbd class="tim-phim" id="tim-phim" hidden>/</kbd>
+          <button type="button" class="tim-xoa" id="tim-xoa" aria-label="Xoá từ khoá" hidden><svg class="bt" aria-hidden="true"><use href="#bt-dong"/></svg></button>
+          <div class="hop-tim" id="hop-tim" hidden>
+            <p class="hop-tim-bao" id="hop-tim-bao" hidden></p>
+            <ul class="hop-tim-ds" id="hop-tim-ds" role="listbox" aria-label="Gợi ý project"></ul>
+          </div>
+        </div>
+        <button type="button" class="nut-dong tim-dong" id="tim-dong"><svg class="bt" aria-hidden="true"><use href="#bt-dong"/></svg>Đóng</button>
+        <p class="an-khoi-mat" id="tim-loa" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+    <div class="dau-trang-cum">
+      <nav class="dieu-huong" aria-label="Điều hướng chính">
+        <a href="kho.html">Kho project</a>
+        <a href="#lo-trinh-nghe">Lộ trình</a>
+        <a href="#xep-hang">Bảng xếp hạng</a>
+        <a href="#giang-vien">Giảng viên</a>
+      </nav>
+      <div class="dau-trang-phai" id="khu-tai-khoan"></div>
+    </div>
+  </div>
 </header>
 
-<section class="mo-dau" id="mo-dau">
-  <div class="mo-dau-den" id="mo-dau-den" aria-hidden="true"></div>
-  <div class="mo-dau-luoi">
+<main id="noi-dung">
+
+<section class="mo-dau">
+  <div class="khung mo-dau-luoi">
     <div>
-      <p class="nhan-dan">Nền tảng học tập theo project</p>
-      <h1>
-        <span>Sáu level.</span>
-        <em id="tieu-de-so">Đang tải…</em>
-        <span>Bắt đầu từ chỗ vừa sức.</span>
-      </h1>
-      <p class="mo-dau-dan">Mỗi project có bối cảnh, mục tiêu học tập, sản phẩm phải nộp và gợi ý khi bí. Nộp bài xong thì có người chấm; bài đạt thì được cộng điểm tích luỹ và nhận đề xuất cho project kế tiếp.</p>
+      <h1>Sáu level<span data-can-so-lieu>, <em id="tieu-de-so">200 project</em></span>. Bắt đầu từ chỗ vừa sức.</h1>
+      <p class="mo-dau-dan" data-can-so-lieu>Kho hiện có <span data-so="projects">200</span> project thuộc <span data-so="tracks">11</span> track, rèn <span data-so="skills">37</span> skill.</p>
       <div class="hang-nut">
-        <a class="nut nut-do" href="#lo-trinh">Xem sáu level</a>
+        <a class="nut nut-do" href="kho.html">Mở kho project<svg class="bt" aria-hidden="true"><use href="#bt-mui-ten"/></svg></a>
         <button type="button" class="nut nut-vien" id="nut-ngau-nhien">Chọn ngẫu nhiên một project</button>
       </div>
     </div>
     <div class="mo-dau-hinh">
-      <svg id="hinh-level" viewBox="0 0 260 380" role="img" aria-label="Sáu level của nền tảng và số project của từng level"></svg>
+      <div class="khung-video" aria-hidden="true">
+        <video muted loop playsinline preload="none" disablepictureinpicture disableremoteplayback data-anh-cho="anh/video-mo-dau.jpg" width="960" height="640">
+          <source src="anh/video-mo-dau.webm" type="video/webm">
+          <source src="anh/video-mo-dau.mp4" type="video/mp4">
+        </video>
+      </div>
+      <button type="button" class="nut-video" id="nut-video" aria-label="Tạm dừng video" hidden><svg class="bt" aria-hidden="true"><use href="#bt-tam-dung"/></svg></button>
+      <button type="button" class="chu-thich-video dang-cho" id="chu-thich-video" data-can-so-lieu tabindex="-1" aria-hidden="true"></button>
     </div>
   </div>
-  <div class="so-lieu" id="so-lieu"></div>
+  <div class="khung">
+    <ol class="tuyen" id="hinh-level" aria-label="Sáu level của nền tảng và số project của từng level"></ol>
+  </div>
 </section>
 
-<section class="ba-buoc">
-  <p class="nhan-dan hien-dan">Cách dùng</p>
-  <h2 class="hien-dan">Ba bước</h2>
-  <div class="ba-buoc-luoi">
-    <div class="hien-dan">
-      <p class="buoc-so">01</p>
-      <p class="buoc-ten">Chọn một project</p>
-      <p class="buoc-mo">Sáu level xếp từ dễ đến khó. Đọc mô tả level rồi chọn project ở level ứng với sức mình. Lọc thêm theo track nếu bạn muốn đi sâu một hướng.</p>
+<section class="ba-buoc" id="ba-buoc">
+  <div class="khung">
+    <div class="ba-buoc-dau">
+      <h2>Ba bước</h2>
+      <button type="button" class="o-xem-video" id="o-xem-video" aria-haspopup="dialog" aria-label="Xem video hướng dẫn, 50 giây">
+        <span class="o-xem-video-anh">
+          <img src="anh/video-huong-dan.jpg" srcset="anh/video-huong-dan-nho.jpg 440w, anh/video-huong-dan.jpg 1280w" sizes="220px" width="1280" height="720" alt="" loading="lazy" decoding="async">
+          <span class="o-xem-video-phat"><svg class="bt" aria-hidden="true"><use href="#bt-phat"/></svg></span>
+        </span>
+        <span class="o-xem-video-chu">
+          <span class="o-xem-video-ten">Video hướng dẫn</span>
+          <time class="o-xem-video-dai" datetime="PT50S">0:50</time>
+        </span>
+      </button>
     </div>
-    <div class="hien-dan">
-      <p class="buoc-so">02</p>
-      <p class="buoc-ten">Làm rồi nộp bài</p>
-      <p class="buoc-mo">Trang project ghi rõ phải nộp những gì. Làm xong, bạn gửi đường dẫn tới mã nguồn. Bí ở đâu thì mở gợi ý, nhưng gợi ý mở dần theo ba tầng chứ không cho sẵn lời giải.</p>
-    </div>
-    <div class="hien-dan">
-      <p class="buoc-so">03</p>
-      <p class="buoc-ten">Nhận điểm và đi tiếp</p>
-      <p class="buoc-mo">Bài nộp được chấm. Bài đạt thì cộng điểm tích luỹ, đủ điều kiện thì có badge. Hệ thống nhìn vào những project bạn đã hoàn thành để đề xuất project tiếp theo.</p>
-    </div>
+    <ol class="ba-buoc-luoi">
+      <li class="buoc">
+        <div class="buoc-hinh dang-cho" id="hinh-chon" data-can-so-lieu aria-hidden="true"></div>
+        <h3 class="buoc-ten">Chọn một project</h3>
+      </li>
+      <li class="buoc">
+        <div class="buoc-hinh dang-cho" id="hinh-nop" data-can-so-lieu aria-hidden="true"></div>
+        <h3 class="buoc-ten">Làm rồi nộp bài</h3>
+      </li>
+      <li class="buoc">
+        <div class="buoc-hinh dang-cho" id="hinh-cham" data-can-so-lieu aria-hidden="true"></div>
+        <h3 class="buoc-ten">Nhận điểm và đi tiếp</h3>
+      </li>
+    </ol>
   </div>
 </section>
 
 <section class="lo-trinh" id="lo-trinh">
-  <div class="lo-trinh-dau">
-    <div>
-      <p class="nhan-dan hien-dan">Toàn bộ kho</p>
-      <h2 class="hien-dan">Kho project theo level</h2>
-      <p class="hang-nut hien-dan"><a class="nut nut-do" href="/kho.html" id="nut-xem-kho">Mở trang kho project</a></p>
+  <div class="khung">
+    <div class="lo-trinh-dau">
+      <h2>Kho project theo level</h2>
+      <div class="o-tien-do">
+        <span class="o-tien-do-nhan">Tiến độ của bạn</span>
+        <span class="o-tien-do-so" id="o-tien-do-so">Chưa đăng nhập</span>
+      </div>
     </div>
-    <div class="o-tien-do">
-      <p class="o-tien-do-nhan">Tiến độ của bạn</p>
-      <p class="o-tien-do-so" id="o-tien-do-so">Chưa đăng nhập</p>
-    </div>
-  </div>
-
-
-  <div class="lo-trinh-than">
-    <aside class="thanh-ben">
-      <p class="thanh-ben-nhan">Sáu level</p>
-      <div id="muc-luc-level"></div>
-    </aside>
-    <div class="cot-noi-dung" id="cot-noi-dung">
-      <p class="dang-tai">Đang tải kho project…</p>
+    <div class="lo-trinh-than">
+      <aside class="thanh-ben" aria-label="Mục lục sáu level">
+        <p class="thanh-ben-nhan">Sáu level</p>
+        <div id="muc-luc-level"></div>
+      </aside>
+      <div class="cot-noi-dung" id="cot-noi-dung">
+        <p class="dang-tai">Đang tải kho project…</p>
+      </div>
     </div>
   </div>
 </section>
-
-<div class="dai-chay">
-  <div class="dai-chay-trong" id="dai-chay-trong"></div>
-</div>
 
 <section class="lo-trinh-nghe" id="lo-trinh-nghe">
-  <p class="nhan-dan hien-dan">Đi theo một hướng</p>
-  <h2 class="hien-dan">Lộ trình nghề nghiệp</h2>
-  <div class="lo-trinh-luoi" id="lo-trinh-luoi"></div>
+  <div class="khung">
+    <h2 id="lo-trinh-nghe-ten">Lộ trình nghề nghiệp</h2>
+    <div class="leo" id="leo"><p class="dang-tai">Đang tải lộ trình…</p></div>
+  </div>
 </section>
 
-
 <section class="xep-hang" id="xep-hang">
-  <p class="nhan-dan hien-dan">Bảng xếp hạng</p>
-  <h2 class="hien-dan">Những người dẫn đầu</h2>
-  <div class="xep-hang-o" id="xep-hang-o"></div>
+  <div class="khung">
+    <h2>Bảng xếp hạng</h2>
+    <div class="xep-hang-o" id="xep-hang-o"><p class="dang-tai">Đang tải bảng xếp hạng…</p></div>
+  </div>
 </section>
 
 <section class="nhan-su" id="giang-vien">
-  <p class="nhan-dan hien-dan">Nhân sự</p>
-  <h2 class="hien-dan">Giảng viên Khoa Trí tuệ nhân tạo</h2>
-  <div class="nhan-su-luoi" id="nhan-su-luoi"></div>
+  <div class="khung">
+    <div class="nhan-su-dau">
+      <h2>Giảng viên phụ trách</h2>
+      <p class="nhan-su-so" id="nhan-su-so" hidden></p>
+    </div>
+    <div class="nhan-su-luoi" id="nhan-su-luoi"><p class="dang-tai">Đang tải danh sách giảng viên…</p></div>
+  </div>
 </section>
 
-<section class="keu-goi">
-  <div>
-    <h2 id="keu-goi-tieu-de">Bắt đầu từ project đầu tiên</h2>
-    <p id="keu-goi-dan">Tạo một tài khoản là đủ để nộp bài. Tiến độ, điểm tích luỹ và badge được lưu trên máy chủ nên bạn mở ở máy nào cũng thấy.</p>
-    <button type="button" class="nut nut-vang" id="nut-keu-goi">Tạo tài khoản</button>
-  </div>
-  <div class="lien-he">
-    <p>Trụ sở chính · số 122 Hoàng Quốc Việt, phường Nghĩa Đô, thành phố Hà Nội.</p>
-    <p>Cơ sở đào tạo tại Hà Nội · số 96A Trần Phú, phường Hà Đông, thành phố Hà Nội.</p>
+<section class="keu-goi" id="keu-goi">
+  <div class="khung keu-goi-trong">
+    <div class="keu-goi-chu">
+      <h2 id="keu-goi-tieu-de">Bắt đầu từ project đầu tiên</h2>
+      <ol class="kg-tuyen dang-cho" id="kg-tuyen" aria-label="Sáu level của nền tảng"></ol>
+      <p class="kg-tien-do" id="kg-tien-do" hidden></p>
+      <button type="button" class="nut nut-do" id="nut-keu-goi">Tạo tài khoản</button>
+    </div>
+    <div class="kg-the dang-cho" id="kg-the"></div>
   </div>
 </section>
+
+</main>
 
 <footer class="chan-trang">
-  <span>© 2026 <span class="lien-mach">Trung tâm Đào tạo chuyên sâu AI ·</span> <span class="lien-mach">Khoa Trí tuệ nhân tạo ·</span> <span class="lien-mach">Học viện Công nghệ Bưu chính Viễn thông</span></span>
-  <span>Tên, chức vụ và ảnh giảng viên lấy từ <a href="https://ai.ptit.edu.vn/gioi-thieu/gioi-thieu-ve-nhan-su/">ai.ptit.edu.vn</a>. Việc phân công giảng viên phụ trách track là đề xuất trong bản thiết kế này.</span>
+  <div class="khung">
+    <div class="chan-hieu">
+      <img class="chan-logo" src="anh/logo-trung-tam-ai.png" width="294" height="230" alt="" loading="lazy" decoding="async">
+      <img class="chan-logo chan-logo-nho" src="anh/logo-khoa-ai-96.png" width="96" height="97" alt="" loading="lazy" decoding="async">
+      <img class="chan-logo chan-logo-nho" src="anh/logo-hoc-vien.png" width="50" height="60" alt="" loading="lazy" decoding="async">
+      <span class="chan-hieu-chu">
+        <span class="chan-hieu-ten">Trung tâm Đào tạo <span class="lien-mach">chuyên sâu AI</span></span>
+        <span class="chan-hieu-phu">Khoa Trí tuệ nhân tạo</span>
+        <span class="chan-hieu-phu">Học viện Công nghệ Bưu chính Viễn thông</span>
+      </span>
+    </div>
+    <div class="chan-cot-bo">
+      <nav class="chan-cot" aria-labelledby="chan-nen-tang">
+        <p class="chan-cot-ten" id="chan-nen-tang">Nền tảng</p>
+        <ul class="chan-ds">
+          <li><a href="kho.html">Kho project</a></li>
+          <li><a href="#lo-trinh-nghe">Lộ trình</a></li>
+          <li><a href="#xep-hang">Bảng xếp hạng</a></li>
+          <li><a href="#giang-vien">Giảng viên</a></li>
+          <li><a href="#ba-buoc" data-mo-video aria-haspopup="dialog">Video hướng dẫn</a></li>
+        </ul>
+      </nav>
+      <div class="chan-cot" id="chan-so-lieu">
+        <p class="chan-cot-ten" id="chan-so-lieu-ten">Số liệu</p>
+        <ul class="chan-ds chan-so" id="chan-so" aria-labelledby="chan-so-lieu-ten"></ul>
+      </div>
+      <div class="chan-cot">
+        <p class="chan-cot-ten" id="chan-lien-he">Liên hệ</p>
+        <address class="chan-ds lien-he" aria-labelledby="chan-lien-he">
+          <span><svg class="bt" aria-hidden="true"><use href="#bt-dia-diem"/></svg><span>Trụ sở chính · số 122 Hoàng Quốc Việt, phường Nghĩa Đô, thành phố Hà Nội</span></span>
+          <span><svg class="bt" aria-hidden="true"><use href="#bt-dia-diem"/></svg><span>Cơ sở đào tạo tại Hà Nội · số 96A Trần Phú, phường Hà Đông, thành phố Hà Nội</span></span>
+        </address>
+      </div>
+    </div>
+    <ol class="chan-tuyen" aria-hidden="true"><li>0</li><li>1</li><li>2</li><li>3</li><li>4</li><li>5</li></ol>
+    <p class="chan-ban-quyen">© 2026 <span class="lien-mach">Trung tâm Đào tạo chuyên sâu AI ·</span> <span class="lien-mach">Khoa Trí tuệ nhân tạo ·</span> <span class="lien-mach">Học viện Công nghệ Bưu chính Viễn thông</span></p>
+  </div>
 </footer>
 
 <div class="lop-nen" id="lop-nen"></div>
 
-<aside class="bang" id="bang-project" aria-hidden="true">
+<aside class="bang" id="bang-project" role="dialog" aria-modal="true" aria-labelledby="bang-project-nhan" aria-hidden="true">
   <div class="bang-dau">
-    <p class="bang-nhan" id="bang-project-nhan"></p>
-    <button type="button" class="nut-dong" data-dong>Đóng ✕</button>
+    <h2 class="bang-nhan" id="bang-project-nhan"></h2>
+    <button type="button" class="nut-dong" data-dong><svg class="bt" aria-hidden="true"><use href="#bt-dong"/></svg>Đóng</button>
   </div>
   <div id="bang-project-than"></div>
 </aside>
 
-<aside class="bang" id="bang-tai-khoan" aria-hidden="true">
+<aside class="bang" id="bang-tai-khoan" role="dialog" aria-modal="true" aria-labelledby="bang-tai-khoan-nhan" aria-hidden="true">
   <div class="bang-dau">
-    <p class="bang-nhan">Tài khoản</p>
-    <button type="button" class="nut-dong" data-dong>Đóng ✕</button>
+    <h2 class="bang-nhan" id="bang-tai-khoan-nhan">Tài khoản</h2>
+    <button type="button" class="nut-dong" data-dong><svg class="bt" aria-hidden="true"><use href="#bt-dong"/></svg>Đóng</button>
   </div>
   <div id="bang-tai-khoan-than"></div>
 </aside>
 
-<aside class="bang" id="bang-cham-bai" aria-hidden="true">
+<aside class="bang" id="bang-cham-bai" role="dialog" aria-modal="true" aria-labelledby="bang-cham-bai-nhan" aria-hidden="true">
   <div class="bang-dau">
-    <p class="bang-nhan">Chấm bài</p>
-    <button type="button" class="nut-dong" data-dong>Đóng ✕</button>
+    <h2 class="bang-nhan" id="bang-cham-bai-nhan">Chấm bài</h2>
+    <button type="button" class="nut-dong" data-dong><svg class="bt" aria-hidden="true"><use href="#bt-dong"/></svg>Đóng</button>
   </div>
   <div id="bang-cham-bai-than"></div>
 </aside>
 
-<dialog id="hop-dang-nhap">
-  <form method="dialog" class="hop-dau">
-    <p class="bang-nhan">Tài khoản</p>
-    <button type="submit" class="nut-dong">Đóng ✕</button>
-  </form>
-  <div class="doi-che-do" id="doi-che-do">
-    <button type="button" data-che-do="dang-nhap" class="dang-chon">Đăng nhập</button>
-    <button type="button" data-che-do="dang-ky">Đăng ký</button>
+<dialog id="hop-dang-nhap" class="hop-tai-khoan" aria-labelledby="hop-tieu-de">
+  <div class="hop-phai">
+    <form method="dialog" class="hop-dau">
+      <h2 class="hop-tieu-de" id="hop-tieu-de">Đăng nhập tài khoản</h2>
+      <button type="submit" class="nut-dong"><svg class="bt" aria-hidden="true"><use href="#bt-dong"/></svg>Đóng</button>
+    </form>
+    <div class="hop-cuon">
+      <div class="doi-che-do" id="doi-che-do" role="tablist" aria-label="Đăng nhập hoặc đăng ký">
+        <button type="button" role="tab" id="nut-che-do-dang-nhap" aria-controls="mau-dang-nhap" aria-selected="true" data-che-do="dang-nhap" class="dang-chon">Đăng nhập</button>
+        <button type="button" role="tab" id="nut-che-do-dang-ky" aria-controls="mau-dang-ky" aria-selected="false" tabindex="-1" data-che-do="dang-ky">Đăng ký</button>
+      </div>
+      <form id="mau-dang-nhap" class="mau mau-tk" role="tabpanel" aria-labelledby="nut-che-do-dang-nhap" novalidate>
+        <div class="truong">
+          <label for="dn-dinh-danh">Thư điện tử hoặc username</label>
+          <input id="dn-dinh-danh" type="text" name="identifier" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+        </div>
+        <div class="truong">
+          <label for="dn-mat-khau">Mật khẩu</label>
+          <div class="o-mat-khau">
+            <input id="dn-mat-khau" type="password" name="password" autocomplete="current-password" required aria-describedby="dn-caps">
+            <button type="button" class="nut-hien-mk" aria-controls="dn-mat-khau" aria-pressed="false" aria-label="Hiện mật khẩu"><svg class="bt bt-hien" aria-hidden="true"><use href="#bt-mat"/></svg><svg class="bt bt-an" aria-hidden="true"><use href="#bt-mat-an"/></svg></button>
+          </div>
+          <p class="bao-caps" id="dn-caps" role="status"></p>
+        </div>
+        <!-- Câu lỗi ngay dưới ô mật khẩu: trên điện thoại bàn phím che nửa dưới hộp. -->
+        <p class="mau-loi" role="alert"></p>
+        <div class="o-ghi-nho">
+          <input class="cong-tac" id="dn-ghi-nho" type="checkbox" role="switch" name="ghi_nho" aria-describedby="dn-ghi-nho-dan">
+          <label for="dn-ghi-nho">Ghi nhớ đăng nhập trên máy này</label>
+          <p class="ghi-nho-dan" id="dn-ghi-nho-dan">Chỉ bật trên máy riêng của bạn; không bật thì phiên chỉ có trong thẻ trình duyệt này và kết thúc khi đóng thẻ.</p>
+        </div>
+        <button type="submit" class="nut nut-day">Đăng nhập</button>
+        <p class="hop-doi">Chưa có tài khoản? <button type="button" class="nut-chu" data-doi-sang="dang-ky">Tạo tài khoản</button></p>
+      </form>
+      <form id="mau-dang-ky" class="mau mau-tk" role="tabpanel" aria-labelledby="nut-che-do-dang-ky" novalidate hidden>
+        <div class="truong">
+          <label for="dk-email">Thư điện tử</label>
+          <input id="dk-email" type="email" name="email" autocomplete="email" autocapitalize="none" spellcheck="false" required>
+        </div>
+        <div class="truong">
+          <label for="dk-username">Username</label>
+          <input id="dk-username" type="text" name="username" autocomplete="off" autocapitalize="none" spellcheck="false" required minlength="3" maxlength="50" placeholder="ví dụ: sinhvien01" aria-describedby="dan-username">
+          <p class="goi-y-song" id="dan-username"></p>
+        </div>
+        <div class="truong">
+          <label for="dk-ten">Họ tên hiển thị, có thể bỏ trống</label>
+          <input id="dk-ten" type="text" name="display_name" autocomplete="name" maxlength="100">
+        </div>
+        <div class="truong">
+          <label for="dk-mat-khau">Mật khẩu</label>
+          <div class="o-mat-khau">
+            <input id="dk-mat-khau" type="password" name="password" autocomplete="new-password" required minlength="8" maxlength="64" aria-describedby="dan-mat-khau dk-caps">
+            <button type="button" class="nut-hien-mk" aria-controls="dk-mat-khau" aria-pressed="false" aria-label="Hiện mật khẩu"><svg class="bt bt-hien" aria-hidden="true"><use href="#bt-mat"/></svg><svg class="bt bt-an" aria-hidden="true"><use href="#bt-mat-an"/></svg></button>
+          </div>
+          <p class="goi-y-song" id="dan-mat-khau"></p>
+          <p class="bao-caps" id="dk-caps" role="status"></p>
+        </div>
+        <p class="mau-loi" role="alert"></p>
+        <div class="o-ghi-nho">
+          <input class="cong-tac" id="dk-ghi-nho" type="checkbox" role="switch" name="ghi_nho" aria-describedby="dk-ghi-nho-dan">
+          <label for="dk-ghi-nho">Ghi nhớ đăng nhập trên máy này</label>
+          <p class="ghi-nho-dan" id="dk-ghi-nho-dan">Chỉ bật trên máy riêng của bạn; không bật thì phiên chỉ có trong thẻ trình duyệt này và kết thúc khi đóng thẻ.</p>
+        </div>
+        <button type="submit" class="nut nut-day">Tạo tài khoản</button>
+        <p class="hop-doi">Đã có tài khoản? <button type="button" class="nut-chu" data-doi-sang="dang-nhap">Đăng nhập</button></p>
+      </form>
+    </div>
   </div>
-  <form id="mau-dang-nhap" class="mau" novalidate>
-    <label>Thư điện tử hoặc username
-      <input type="text" name="identifier" autocomplete="username" required>
-    </label>
-    <label>Mật khẩu
-      <input type="password" name="password" autocomplete="current-password" required>
-    </label>
-    <p class="mau-loi" role="alert"></p>
-    <button type="submit" class="nut nut-day">Đăng nhập</button>
+  <div class="hop-the">
+    <div class="hop-the-khoi" id="hop-the-khoi">
+      <div class="the-hv" id="the-hv" aria-hidden="true"></div>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="hop-video" class="hop-video" aria-labelledby="hop-video-tieu-de">
+  <form method="dialog" class="hop-video-dau">
+    <h2 class="hop-video-tieu-de" id="hop-video-tieu-de">Video hướng dẫn</h2>
+    <button type="submit" class="nut-dong"><svg class="bt" aria-hidden="true"><use href="#bt-dong"/></svg>Đóng</button>
   </form>
-  <form id="mau-dang-ky" class="mau" novalidate hidden>
-    <label>Thư điện tử
-      <input type="email" name="email" autocomplete="email" required>
-    </label>
-    <label>Username
-      <input type="text" name="username" autocomplete="off" required minlength="3" maxlength="50" placeholder="vidu: congtt" aria-describedby="dan-username">
-    </label>
-    <p class="mau-chu-dan" id="dan-username">Chữ thường, chữ số và dấu gạch dưới, từ 3 đến 50 ký tự. Đây không phải thư điện tử.</p>
-    <label>Họ tên hiển thị, có thể bỏ trống
-      <input type="text" name="display_name" autocomplete="name" maxlength="100">
-    </label>
-    <label>Mật khẩu
-      <input type="password" name="password" autocomplete="new-password" required minlength="8" maxlength="64" aria-describedby="dan-mat-khau">
-    </label>
-    <p class="mau-chu-dan" id="dan-mat-khau">Từ 8 đến 64 ký tự.</p>
-    <p class="mau-loi" role="alert"></p>
-    <button type="submit" class="nut nut-day">Tạo tài khoản</button>
-  </form>
+  <div class="hop-video-khung">
+    <video controls playsinline preload="none" width="1280" height="720" aria-describedby="hop-video-mo-ta">
+      <source src="anh/video-huong-dan.webm" type="video/webm">
+      <source src="anh/video-huong-dan.mp4" type="video/mp4">
+      <track kind="captions" src="anh/video-huong-dan.vtt" srclang="vi" label="Tiếng Việt">
+    </video>
+  </div>
+  <p class="an-khoi-mat" id="hop-video-mo-ta">Video không có tiếng. Một sinh viên tìm và mở project “Đổi tên hàng loạt file ảnh”, đọc bối cảnh và sản phẩm phải nộp, rồi mở gợi ý tầng 1. Sinh viên đăng nhập ngay trong bảng project, dán đường dẫn tới mã nguồn và nộp bài; bài chuyển sang chờ chấm. Một giảng viên mở màn hình chấm bài và chấm bài ấy đạt. Sinh viên mở bảng tài khoản xem điểm tích luỹ và badge vừa nhận, rồi mở project được đề xuất tiếp theo.</p>
+  <div class="hop-video-loi" id="hop-video-loi" role="alert"></div>
 </dialog>
 
 <div class="thong-bao" id="thong-bao" role="status" aria-live="polite"></div>

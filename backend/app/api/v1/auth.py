@@ -41,7 +41,14 @@ def login(payload: UserLogin, db: DbSession, request: Request) -> Token:
     """
     dia_chi = request.client.host if request.client else "khong-ro"
 
-    con_cho = chan_service.con_phai_cho(payload.identifier, dia_chi)
+    # Bộ đếm tính theo tài khoản chứ không theo chuỗi gõ vào: một tài khoản vào
+    # được bằng cả username lẫn thư điện tử, nếu đếm theo chuỗi thì khoá xong
+    # username vẫn dò tiếp được qua thư điện tử và hạn mức tăng gấp đôi. Chuỗi
+    # không khớp tài khoản nào thì đếm theo chính chuỗi đó.
+    user_tim = auth_service.get_user_by_identifier(db, payload.identifier)
+    khoa = f"id:{user_tim.id}" if user_tim else payload.identifier
+
+    con_cho = chan_service.con_phai_cho(khoa, dia_chi)
     if con_cho > 0:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -54,7 +61,7 @@ def login(payload: UserLogin, db: DbSession, request: Request) -> Token:
 
     user = auth_service.authenticate(db, payload.identifier, payload.password)
     if user is None:
-        chan_service.ghi_lan_sai(payload.identifier, dia_chi)
+        chan_service.ghi_lan_sai(khoa, dia_chi)
         # Không nói rõ sai ở đâu, để tránh lộ thông tin tài khoản nào đang tồn tại.
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -62,7 +69,7 @@ def login(payload: UserLogin, db: DbSession, request: Request) -> Token:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    chan_service.xoa_lan_sai(payload.identifier, dia_chi)
+    chan_service.xoa_lan_sai(khoa, dia_chi)
     token, expires_in = create_access_token(user.id)
     return Token(access_token=token, expires_in=expires_in, user=UserRead.model_validate(user))
 

@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from sqlalchemy import ColumnElement, Select, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy import ColumnElement, Select, case, func, or_, select
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.chuoi import bo_dau
 from app.core.config import settings
@@ -91,20 +92,49 @@ def _apply_filter(statement: Select, filters: ProjectFilter) -> Select:
         statement = statement.where(Project.estimated_hours <= filters.max_hours)
 
     if filters.query:
-        # Cả từ khoá lẫn hai cột được so khớp đều đưa về chữ thường không dấu,
-        # nên gõ "nhan dang" cũng ra project tên "Nhận dạng".
-        tu_khoa = bo_dau(filters.query.strip())
-        for ky_tu in _KY_TU_LIKE:
-            tu_khoa = tu_khoa.replace(ky_tu, f"\\{ky_tu}")
-        pattern = f"%{tu_khoa}%"
+        khop = _dieu_kien_khop(filters.query)
         statement = statement.where(
             or_(
-                _khoa_chu(Project.title).like(pattern, escape="\\"),
-                _khoa_chu(Project.summary).like(pattern, escape="\\"),
+                khop(Project.title),
+                khop(Project.summary),
+                # Gõ tên một track hay một skill cũng phải ra project của nó: người
+                # mới gõ "python" mong thấy cả track Python chứ không chỉ bốn project
+                # có chữ ấy trong tên.
+                Project.track_id.in_(select(Track.id).where(khop(Track.name))),
+                Project.id.in_(
+                    select(project_skill.c.project_id)
+                    .join(Skill, Skill.id == project_skill.c.skill_id)
+                    .where(khop(Skill.name))
+                ),
             )
         )
 
     return statement
+
+
+def _dieu_kien_khop(query: str) -> Callable[[ColumnElement[str]], ColumnElement[bool]]:
+    """Dựng hàm tạo điều kiện "cột này khớp từ khoá", dùng chung cho mọi cột.
+
+    Từ khoá không dấu thì so khớp không dấu, nên "nhan dang" ra "Nhận dạng". Từ
+    khoá có dấu thì so khớp giữ dấu: người đã gõ "ảnh" là muốn "ảnh", không phải
+    "thành" hay "hành"; "dễ" không phải "để" hay "đếm". Trên SQLite từ khoá còn
+    phải đứng ở đầu một từ, xem khop_tu trong app/db/session.py; cơ sở dữ liệu
+    khác không có hàm ấy nên chỉ khớp chuỗi con bằng LIKE.
+    """
+    tu_khoa = query.strip()
+    giu_dau = bo_dau(tu_khoa) != tu_khoa.lower()
+    khoa_tu_khoa = tu_khoa.lower() if giu_dau else bo_dau(tu_khoa)
+
+    def khoa_cot(cot: ColumnElement[str]) -> ColumnElement[str]:
+        return func.lower(cot) if giu_dau else _khoa_chu(cot)
+
+    if settings.is_sqlite:
+        return lambda cot: func.khop_tu(khoa_cot(cot), khoa_tu_khoa) == 1
+
+    mau = khoa_tu_khoa
+    for ky_tu in _KY_TU_LIKE:
+        mau = mau.replace(ky_tu, f"\\{ky_tu}")
+    return lambda cot: khoa_cot(cot).like(f"%{mau}%", escape="\\")
 
 
 def list_projects(
@@ -116,11 +146,25 @@ def list_projects(
         return [], 0
 
     order_by = SORT_OPTIONS[filters.sort]
+    # Có từ khoá thì project khớp ở tên đứng trước project chỉ khớp ở tóm tắt,
+    # track hay skill; trong mỗi nhóm vẫn giữ cách sắp người dùng chọn.
+    uu_tien_ten = (
+        (case((_dieu_kien_khop(filters.query)(Project.title), 0), else_=1),)
+        if filters.query
+        else ()
+    )
     statement = (
         _apply_filter(select(Project), filters)
+        # Danh sách cần biết project nào còn khoá, nên nạp tiên quyết bằng một
+        # truy vấn cho cả trang, chỉ lấy bốn cột của ProjectRef.
+        .options(
+            selectinload(Project.prerequisites)
+            .load_only(Project.id, Project.slug, Project.title, Project.reward_points)
+            .raiseload("*")
+        )
         # Sắp thêm theo id để thứ tự luôn cố định giữa các trang, kể cả khi nhiều
         # project trùng khoá sắp xếp chính.
-        .order_by(*order_by, Project.id.asc())
+        .order_by(*uu_tien_ten, *order_by, Project.id.asc())
         .offset(params.offset)
         .limit(params.page_size)
     )
@@ -135,6 +179,11 @@ def get_published_project(db: Session, slug: str) -> Project | None:
     được phép hiển thị.
     """
     return db.scalar(select(Project).where(Project.slug == slug, Project.is_published.is_(True)))
+
+
+def select_filtered_projects(filters: ProjectFilter) -> Select:
+    """Câu lệnh chọn project theo bộ lọc, cho phần khác ghép thêm điều kiện riêng."""
+    return _apply_filter(select(Project), filters)
 
 
 def get_random_project(db: Session, filters: ProjectFilter) -> Project | None:
@@ -156,11 +205,13 @@ def list_mentors(db: Session) -> list[Mentor]:
 
 
 def list_skills(db: Session) -> list[Skill]:
-    return list(db.scalars(select(Skill).order_by(Skill.name)).all())
+    # Sắp theo khoá không dấu, cùng lý do với cách sắp project theo tên: theo thứ
+    # tự nhị phân thì "Đánh giá mô hình" và "pandas" rơi xuống sau "Xây dựng".
+    return list(db.scalars(select(Skill).order_by(_khoa_chu(Skill.name), Skill.name)).all())
 
 
 def list_roadmaps(db: Session) -> list[Roadmap]:
-    return list(db.scalars(select(Roadmap).order_by(Roadmap.name)).all())
+    return list(db.scalars(select(Roadmap).order_by(_khoa_chu(Roadmap.name), Roadmap.name)).all())
 
 
 def get_roadmap_by_slug(db: Session, slug: str) -> Roadmap | None:

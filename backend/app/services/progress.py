@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import threading
+from dataclasses import replace
+
 from sqlalchemy import case, func, select, update
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Load, Session, selectinload
 
 from app.db.base import utcnow
-from app.models.catalog import Project
+from app.models.catalog import Level, Project, project_prerequisite
 from app.models.enums import SubmissionStatus
 from app.models.progress import Badge, Submission
 from app.models.user import User
@@ -15,6 +18,7 @@ from app.schemas.common import PageParams
 from app.schemas.progress import (
     LeaderboardEntry,
     LevelProgress,
+    PreviousReview,
     ProgressSummary,
     SubmissionCreate,
     SubmissionReview,
@@ -23,6 +27,34 @@ from app.schemas.progress import (
 )
 from app.services import badges as badge_service
 from app.services import catalog as catalog_service
+from app.services.catalog import ProjectFilter
+
+# Bốn cột của project mà phản hồi bài nộp cần, cộng hai khoá ngoại để nạp level
+# và track; mọi quan hệ khác của project bị chặn, xem list_submissions.
+_COT_PROJECT_CUA_BAI_NOP = (
+    Project.id,
+    Project.slug,
+    Project.title,
+    Project.reward_points,
+    Project.level_id,
+    Project.track_id,
+)
+
+
+def _nap_project_cua_bai_nop() -> tuple[Load, Load, Load]:
+    """Tuỳ chọn nạp project của một trang bài nộp bằng ba truy vấn cho cả trang.
+
+    Phản hồi cần bốn trường của project cùng level và track. Chỉ định đúng các
+    cột đó và chặn mọi quan hệ còn lại, nếu không mỗi trang bài nộp sẽ kéo theo
+    cả skill lẫn tiên quyết của từng project cùng những cột văn bản dài không
+    dùng tới.
+    """
+    project = selectinload(Submission.project).load_only(*_COT_PROJECT_CUA_BAI_NOP)
+    return (
+        project.raiseload("*"),
+        project.selectinload(Project.level),
+        project.selectinload(Project.track),
+    )
 
 
 class ProjectAlreadyCompleted(Exception):
@@ -43,6 +75,14 @@ class ChuaMoKhoa(Exception):
     def __init__(self, con_thieu: list[str]) -> None:
         super().__init__(", ".join(con_thieu))
         self.con_thieu = con_thieu
+
+
+# Việc nộp bài là một chuỗi đọc rồi ghi: tìm bài đang chờ, không có thì tạo mới.
+# Hai lượt nộp chạy song song cùng đọc thấy "chưa có" rồi cùng tạo, và một người
+# có hai bài chờ chấm cho cùng một project. Bảng submission không có ràng buộc
+# duy nhất cho trường hợp này, nên chuỗi đọc-ghi được xếp hàng bằng một khoá
+# trong tiến trình; nền tảng chạy một tiến trình, giống như bộ đếm đăng nhập sai.
+_khoa_nop_bai = threading.Lock()
 
 
 def completed_project_ids(db: Session, user_id: int) -> set[int]:
@@ -72,6 +112,14 @@ def create_submission(
     và nếu mỗi lần như vậy đẻ ra một bản ghi thì hàng đợi của giảng viên đầy
     những bài trùng nhau của cùng một người, cùng một project.
     """
+    with _khoa_nop_bai:
+        return _nop_bai(db, user, project, payload)
+
+
+def _nop_bai(
+    db: Session, user: User, project: Project, payload: SubmissionCreate
+) -> tuple[Submission, bool]:
+    """Phần thân của create_submission, chạy khi đã giữ khoá nộp bài."""
     con_thieu = [
         tien_quyet.title
         for tien_quyet in project.prerequisites
@@ -97,25 +145,47 @@ def create_submission(
             Submission.status == SubmissionStatus.PENDING,
         )
     )
-    la_bai_moi = dang_cho is None
 
-    submission = dang_cho or Submission(
-        user_id=user.id,
-        project_id=project.id,
-        status=SubmissionStatus.PENDING,
-    )
-    submission.repo_url = str(payload.repo_url)
-    submission.demo_url = str(payload.demo_url) if payload.demo_url else None
-    submission.note = payload.note
-    if la_bai_moi:
+    if dang_cho is None:
+        submission = Submission(
+            user_id=user.id,
+            project_id=project.id,
+            status=SubmissionStatus.PENDING,
+            repo_url=str(payload.repo_url),
+            demo_url=str(payload.demo_url) if payload.demo_url else None,
+            note=payload.note,
+        )
         db.add(submission)
-    else:
-        # Bài được xếp lại vào cuối hàng đợi, vì nội dung của nó vừa thay đổi.
-        submission.submitted_at = utcnow()
+        db.commit()
+        db.refresh(submission)
+        return submission, True
+
+    # Nội dung mới chỉ được ghi đè khi bài vẫn còn chờ chấm, và điều kiện đó nằm
+    # ngay trong câu UPDATE, cùng cách với lúc chấm bài. Giảng viên có thể vừa
+    # chấm xong đúng lúc người học bấm nộp lại: nếu gán thuộc tính rồi lưu thì
+    # bản đã chấm đạt bị thay ruột bằng bài khác, còn điểm và nhận xét thì vẫn
+    # của bài cũ. Bài được xếp lại vào cuối hàng đợi, vì nội dung vừa thay đổi.
+    ket_qua = db.execute(
+        update(Submission)
+        .where(Submission.id == dang_cho.id, Submission.status == SubmissionStatus.PENDING)
+        .values(
+            repo_url=str(payload.repo_url),
+            demo_url=str(payload.demo_url) if payload.demo_url else None,
+            note=payload.note,
+            submitted_at=utcnow(),
+        )
+    )
+    if ket_qua.rowcount == 0:
+        db.rollback()
+        db.refresh(dang_cho)
+        if dang_cho.status is SubmissionStatus.ACCEPTED:
+            raise ProjectAlreadyCompleted
+        # Bài vừa bị trả về hoặc chưa đạt, nên bản nộp mới là một bài mới.
+        return _nop_bai(db, user, project, payload)
 
     db.commit()
-    db.refresh(submission)
-    return submission, la_bai_moi
+    db.refresh(dang_cho)
+    return dang_cho, False
 
 
 def _da_duoc_cong_diem(db: Session, submission: Submission) -> bool:
@@ -218,15 +288,7 @@ def list_submissions(
     items = db.scalars(
         select(Submission)
         .where(*conditions)
-        # Phản hồi chỉ cần bốn trường của project. Chỉ định đúng bốn cột đó và
-        # chặn mọi quan hệ còn lại, nếu không mỗi trang bài nộp sẽ kéo theo cả
-        # level, track và skill của từng project cùng những cột văn bản dài
-        # không dùng tới.
-        .options(
-            selectinload(Submission.project)
-            .load_only(Project.id, Project.slug, Project.title, Project.reward_points)
-            .raiseload("*")
-        )
+        .options(*_nap_project_cua_bai_nop())
         .order_by(Submission.submitted_at.desc(), Submission.id.desc())
         .offset(params.offset)
         .limit(params.page_size)
@@ -251,22 +313,105 @@ def list_all_submissions(
     if total == 0:
         return [], 0
 
-    items = db.scalars(
-        select(Submission)
-        .where(*conditions)
-        .options(
-            selectinload(Submission.project)
-            .load_only(Project.id, Project.slug, Project.title, Project.reward_points)
-            .raiseload("*"),
-            selectinload(Submission.user)
-            .load_only(User.id, User.username, User.display_name)
-            .raiseload("*"),
+    items = list(
+        db.scalars(
+            select(Submission)
+            .where(*conditions)
+            .options(
+                *_nap_project_cua_bai_nop(),
+                selectinload(Submission.user)
+                .load_only(User.id, User.username, User.display_name)
+                .raiseload("*"),
+            )
+            .order_by(Submission.submitted_at.asc(), Submission.id.asc())
+            .offset(params.offset)
+            .limit(params.page_size)
+        ).all()
+    )
+    _gan_lich_su_nop(db, items)
+    return items, total
+
+
+def _gan_lich_su_nop(db: Session, items: list[Submission]) -> None:
+    """Gắn số lần nộp và lần chấm trước vào từng bài nộp của một trang.
+
+    Người chấm cần phân biệt bài nộp lại với bài nộp lần đầu, và thấy lại nhận
+    xét của lần trước để xem người nộp đã sửa đúng chưa. Hai giá trị này không
+    nằm trong bảng, nên được tính từ mọi bài nộp cũ hơn của cùng người cho cùng
+    project, đọc bằng một truy vấn cho cả trang rồi gắn lên đối tượng để schema
+    đọc như thuộc tính thường.
+    """
+    if not items:
+        return
+    cac_cap = {(bai.user_id, bai.project_id) for bai in items}
+    cac_bai_cu = db.execute(
+        select(
+            Submission.user_id,
+            Submission.project_id,
+            Submission.id,
+            Submission.status,
+            Submission.feedback,
+            Submission.submitted_at,
+            Submission.reviewed_at,
+        ).where(
+            Submission.user_id.in_({user_id for user_id, _ in cac_cap}),
+            Submission.project_id.in_({project_id for _, project_id in cac_cap}),
         )
-        .order_by(Submission.submitted_at.asc(), Submission.id.asc())
-        .offset(params.offset)
-        .limit(params.page_size)
     ).all()
-    return list(items), total
+
+    for bai in items:
+        truoc = [
+            cu
+            for cu in cac_bai_cu
+            if (cu.user_id, cu.project_id) == (bai.user_id, bai.project_id)
+            and (cu.submitted_at, cu.id) < (bai.submitted_at, bai.id)
+        ]
+        bai.attempt = len(truoc) + 1
+        da_cham = [cu for cu in truoc if cu.status is not SubmissionStatus.PENDING]
+        gan_nhat = max(
+            da_cham, key=lambda cu: (cu.reviewed_at or cu.submitted_at, cu.id), default=None
+        )
+        bai.previous_review = (
+            PreviousReview(
+                status=gan_nhat.status, feedback=gan_nhat.feedback, reviewed_at=gan_nhat.reviewed_at
+            )
+            if gan_nhat is not None
+            else None
+        )
+
+
+def random_suitable_project(db: Session, user: User, filters: ProjectFilter) -> Project | None:
+    """Chọn ngẫu nhiên một project vừa sức người đang đăng nhập.
+
+    Vừa sức nghĩa là: chưa hoàn thành, đã mở khoá (mọi project tiên quyết đã
+    hoàn thành), và không cao hơn một level so với level cao nhất đã hoàn thành,
+    trừ khi người gọi tự chọn level. Không còn project nào như thế ở các level
+    ấy thì nới ra mọi level, vẫn loại bài đã xong và bài còn khoá.
+    """
+    completed = completed_project_ids(db, user.id)
+    con_khoa = select(project_prerequisite.c.project_id)
+    if completed:
+        con_khoa = con_khoa.where(project_prerequisite.c.prerequisite_id.not_in(completed))
+
+    def chon(cac_level: list[int]) -> Project | None:
+        statement = catalog_service.select_filtered_projects(
+            replace(filters, levels=cac_level)
+        ).where(Project.id.not_in(con_khoa))
+        if completed:
+            statement = statement.where(Project.id.not_in(completed))
+        return db.scalar(statement.order_by(func.random()).limit(1))
+
+    if filters.levels:
+        return chon(filters.levels)
+
+    level_cao_nhat = (
+        db.scalar(select(func.max(Project.level_id)).where(Project.id.in_(completed)))
+        if completed
+        else -1
+    )
+    level_tran = db.scalar(select(func.max(Level.id))) or 0
+    vua_suc = list(range(0, min(level_cao_nhat + 1, level_tran) + 1))
+    return chon(vua_suc) or chon([])
 
 
 def summarize(db: Session, user: User) -> ProgressSummary:
